@@ -104,7 +104,6 @@ def render_bookmark_buttons(item_dict, unique_key_prefix):
 
 def render_deal_ui(item, key_prefix, record_num=None):
     if item['source_tab'] == 'tab1':
-        # Yahan Record # wala UI wapas laga diya hai aur center kar diya hai
         title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
         st.markdown(
             f"<h3 style='text-align: center;'><span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px; border: 1px solid #c3e6cb;'>{title_text}</span></h3>", 
@@ -160,7 +159,6 @@ with tab1:
     st.markdown("### 🔍 General Search")
     user_query = st.text_input("Search:", placeholder="Ali block rent ya p3", key="search_input_tab1")
 
-    # Search persistence logic
     if st.button("🔍 Search Karein", key="btn_tab1"):
         st.session_state.search_active1 = True
         st.session_state.last_query1 = user_query
@@ -172,6 +170,7 @@ with tab1:
         with st.spinner("Talaash ki ja rahi hai..."):
             search_patterns = get_search_patterns(user_query)
             matched_results = []
+            seen_signatures = set() # Duplicates hatane ke liye memory set
             
             for idx, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
@@ -224,6 +223,15 @@ with tab1:
                     highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
                     wa_link = get_clean_whatsapp(f"{sender} {details}")
                     
+                    # Deduplication Signature (Sender + Exact Deal Text)
+                    # Agar same sender ne wahi text dobara bheja hai toh signature same hoga
+                    clean_text_sig = re.sub(r'<[^>]*?>', '', matched_html).strip().lower()
+                    signature = f"{sender}_{clean_text_sig}"
+                    
+                    if signature in seen_signatures:
+                        continue # Agar pehle se maujood hai toh skip kar do (Duplicate hta do)
+                    seen_signatures.add(signature)
+                    
                     item_id = generate_id(date_time, sender, matched_html)
                     
                     matched_results.append({
@@ -239,9 +247,8 @@ with tab1:
             if not matched_results:
                 st.warning("❌ Aapke keywords wala koi record nahi mila.")
             else:
-                st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain:")
-                for match_idx, item in enumerate(matched_results[:50], 1):
-                    # Yahan match_idx pass kar diya taake numbering show ho jaye
+                st.success(f"🎉 Qamyabi! {len(matched_results)} unique matching records mil gaye hain:")
+                for match_idx, item in enumerate(matched_results[:100], 1):
                     render_deal_ui(item, f"t1_{match_idx}", match_idx)
 
 # ------------------------------------------
@@ -263,6 +270,7 @@ with tab2:
             search_patterns = get_search_patterns(match_query)
             required_deals = []
             available_deals = []
+            seen_signatures_tab2 = set() # Matcher ke liye duplicate filter
             required_keywords = r'\b(need|require|required|chahiye|chahye|looking|buyer|client)\b'
             
             for idx, row in df.iterrows():
@@ -313,6 +321,13 @@ with tab2:
                     wa_link = get_clean_whatsapp(f"{sender} {details}")
                     
                     for m_data in matched_chunks_data:
+                        clean_text_sig = re.sub(r'<[^>]*?>', '', m_data['deal_text']).strip().lower()
+                        signature = f"{sender}_{clean_text_sig}"
+                        
+                        if signature in seen_signatures_tab2:
+                            continue # Duplicate skip
+                        seen_signatures_tab2.add(signature)
+                        
                         item_id = generate_id(date_time, sender, m_data['deal_text'])
                         deal_dict = {
                             'id': item_id,
@@ -351,7 +366,6 @@ with tab3:
         st.info("Abhi tak aapne koi deal bookmark nahi ki.")
     else:
         for i, item in enumerate(reversed(list(st.session_state.shahjhan_bm.values()))):
-            # Bookmarks mein bhi numbering de di hai
             render_deal_ui(item, f"bm_sj_{i}", i + 1)
 
 # ------------------------------------------
@@ -363,5 +377,4 @@ with tab4:
         st.info("Abhi tak aapne koi deal bookmark nahi ki.")
     else:
         for i, item in enumerate(reversed(list(st.session_state.touqeer_bm.values()))):
-            # Bookmarks mein bhi numbering de di hai
             render_deal_ui(item, f"bm_tq_{i}", i + 1)
