@@ -1,21 +1,9 @@
 import streamlit as st
 import pandas as pd
-from google import genai
 
-st.set_page_config(page_title="My Real Estate AI", page_icon="🏠")
-st.title("🏠 Bahria Town Estate AI Bot")
-st.write("Aapki Data Sheets se automatic details nikalne wala bot.")
-
-# API Key aur Client Setup
-client = None
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        API_KEY = st.secrets["GEMINI_API_KEY"]
-        client = genai.Client(api_key=API_KEY)
-    else:
-        st.error("⚠ Streamlit Secrets mein 'GEMINI_API_KEY' nahi mili!")
-except Exception as e:
-    st.error(f"API Key setup error: {e}")
+st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
+st.title("🏠 Bahria Town Smart Search Bot")
+st.write("Aapke messages se exact matching details nikalne wala smart bot.")
 
 # Aapki Data Sheets ki IDs
 SHEET_IDS = [
@@ -26,73 +14,86 @@ SHEET_IDS = [
 # Cache clear karne ka button
 if st.button("🔄 Data Refresh Karein (Clear Cache)"):
     st.cache_data.clear()
-    st.success("Cache clear ho gaya! Ab app naya data read karegi.")
+    st.success("Cache clear ho gaya! Naya data load ho raha hai.")
 
 # Data load karne ka function
 @st.cache_data(ttl=3600) 
 def load_all_data():
     all_data = []
-    loaded_sheets = 0
     for sheet_id in SHEET_IDS:
         url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
         try:
             df = pd.read_csv(url)
             if not df.empty:
                 all_data.append(df)
-                loaded_sheets += 1
-        except Exception as e:
+        except Exception:
             continue
     
     if all_data:
-        return pd.concat(all_data, ignore_index=True), loaded_sheets
+        combined_df = pd.concat(all_data, ignore_index=True)
+        # Date & Time ke mutabiq New to Old sort karna (Latest sab se upar)
+        if 'Date & Time' in combined_df.columns:
+            combined_df['Parsed_Date'] = pd.to_datetime(combined_df['Date & Time'], errors='coerce')
+            combined_df = combined_df.sort_values(by='Parsed_Date', ascending=False)
+        return combined_df
     return pd.DataFrame(), 0
 
-with st.spinner("Data Load ho raha hai..."):
-    df, sheets_count = load_all_data()
+with st.spinner("Data load ho raha hai..."):
+    df = load_all_data()
 
 if df.empty:
-    st.error("⚠️ Data load nahi hua! Ya toh sheets khali hain, ya unki 'Share' settings mein 'Anyone with the link' nahi kiya hua.")
+    st.error("⚠️ Data load nahi hua! Sheets ki 'Share' settings check karein.")
 else:
-    st.success(f"✅ {sheets_count} sheets se Data kamyabi se load ho gaya hai (Total Rows: {len(df)}).")
+    st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
-user_query = st.text_input("Aapka sawal (Jaise: P1 mein rent ke liye kya hai?):")
+# User Input
+user_query = st.text_input("Yahan apna keyword likhein (Jaise: Ali block rent, corner villa, P8):")
 
-if st.button("Dhoondo"):
-    if not user_query:
-        st.warning("⚠️ Bhai koi sawal to likho!")
-    elif client is None:
-        st.error("⚠️ AI Client configure nahi hua, apni Streamlit Secrets mein API key check karein.")
+if st.button("🔍 Search Karein"):
+    if not user_query.strip():
+        st.warning("⚠️ Pehle kuch likhein toh sahi!")
     elif df.empty:
-        st.warning("⚠️ Data access nahi ho raha, pehle upar 'Data Refresh' button dabayen.")
+        st.warning("⚠️ Data available nahi hai.")
     else:
-        with st.spinner("AI aapke messages parh raha hai..."):
-            keywords = user_query.lower().replace('mein', '').replace('ke', '').replace('liye', '').replace('kya', '').replace('hai', '').split()
-            mask = df.astype(str).apply(lambda x: x.str.lower().str.contains('|'.join(keywords), na=False)).any(axis=1)
-            filtered_df = df[mask].head(100) 
+        with st.spinner("Exact matching tukre talaash kiye ja rahe hain..."):
+            query_terms = user_query.lower().split()
+            
+            # Filter rows containing all keywords
+            mask = pd.Series([True] * len(df))
+            for term in query_terms:
+                term_mask = df.astype(str).apply(lambda x: x.str.lower().str.contains(term, na=False)).any(axis=1)
+                mask = mask & term_mask
+            
+            filtered_df = df[mask].head(30) # Top 30 relevant results
             
             if filtered_df.empty:
-                st.warning("Aapke sawal ke mutabiq sheets mein koi record nahi mila.")
+                st.warning("❌ Aapke search ke mutabiq koi record nahi mila.")
             else:
-                data_text = filtered_df.to_csv(index=False)
-                prompt = f"""
-                Tum ek expert Real Estate assistant ho. 
-                User ka sawal: '{user_query}'
+                st.success(f"🎉 Qamyabi! {len(filtered_df)} matching posts mil gayi hain:")
+                st.markdown("---")
                 
-                Niche user ki excel sheets ka filter kiya hua data hai:
-                {data_text}
-                
-                Is data ko parh kar bilkul NotebookLM ki tarah ek mukammal, point-to-point Roman Urdu/Hindi mein summary do. 
-                Rent, location, demand, aur contact number zaroor shamil karna. 
-                Agar data mein jawab nahi hai toh bata dena.
-                """
-                
-                try:
-                    # Using gemini-2.0-flash which is fully compatible with google-genai client
-                    response = client.models.generate_content(
-                        model='gemini-3.8-flash',
-                        contents=prompt,
-                    )
-                    st.success("Jawab Mil Gaya!")
-                    st.markdown(response.text)
-                except Exception as api_err:
-                    st.error(f"AI Response generate karte waqt error aaya: {api_err}")
+                match_count = 0
+                for idx, row in filtered_df.iterrows():
+                    # Poori row ke text ko lines mein tornay ke liye
+                    row_text = str(row.to_dict())
+                    lines = [line.strip() for line in row_text.split('\n') if line.strip()]
+                    
+                    # Sirf woh line ya hissa nikalna jo keyword se match karta ho
+                    matching_snippets = []
+                    for line in lines:
+                        if any(term in line.lower() for term in query_terms):
+                            matching_snippets.append(line)
+                    
+                    # Agar specific lines na milen toh poori details dikha dein, warna sirf matching hissa
+                    display_text = "\n".join(matching_snippets) if matching_snippets else row_text
+                    
+                    match_count += 1
+                    with st.container():
+                        st.markdown(f"**Result #{match_count}**")
+                        if 'Date & Time' in row and pd.notna(row['Date & Time']):
+                            st.markdown(f"🕒 **Waqt (Time):** {row['Date & Time']}")
+                        if 'Source/Sender' in row and pd.notna(row['Source/Sender']):
+                            st.markdown(f"👤 **Sender:** {row['Source/Sender']}")
+                        
+                        st.markdown(f"📋 **Mutaliqa Details:**\n{display_text}")
+                        st.markdown("---")
