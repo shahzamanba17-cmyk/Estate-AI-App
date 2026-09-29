@@ -3,6 +3,33 @@ import pandas as pd
 import re
 
 st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
+
+# --- PASSWORD PROTECTION SYSTEM ---
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == "Shujahyder1":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.title("🔐 Restrict Access - Bahria Town Bot")
+        st.text_input("App kholne ke liye Password darj karein:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.title("🔐 Restrict Access - Bahria Town Bot")
+        st.text_input("App kholne ke liye Password darj karein:", type="password", on_change=password_entered, key="password")
+        st.error("😕 Ghalat password! Sahi password lagayein.")
+        return False
+    else:
+        return True
+
+# Agar password theek nahi hai, toh app yahin ruk jaye gi
+if not check_password():
+    st.stop()
+
+# --- ASLI APP CODE ---
 st.title("🏠 Bahria Town Smart Search Bot")
 st.write("Clean, fast and exact-keyword search with yellow highlighting.")
 
