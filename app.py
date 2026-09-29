@@ -5,15 +5,9 @@ import re
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
 st.title("Deal")
-st.write("Clean, fast and exact-keyword search with yellow highlighting.")
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
-
-# Cache clear karne ka button
-if st.button("🔄 Data Refresh Karein (Clear Cache)"):
-    st.cache_data.clear()
-    st.success("Cache clear ho gaya! Naya data load ho raha hai.")
 
 # Data load karne ka function
 @st.cache_data(ttl=3600) 
@@ -33,10 +27,18 @@ def load_data():
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
+# Refresh button (Sirf icon ke sath aur click hone par green indicator)
+col_btn, col_info = st.columns([1, 4])
+with col_btn:
+    if st.button("🔄"):
+        st.cache_data.clear()
+        st.rerun()
+
 if df.empty:
-    st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings 'Anyone with the link can view' par check karein.")
+    st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
 else:
-    st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
+    # Sirf number aur green icon state
+    st.markdown(f"🟢 **{len(df)}** records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
 # Clean WhatsApp Direct Number Extractor
 def get_clean_whatsapp(text):
@@ -52,7 +54,7 @@ user_query = st.text_input("Yahan apna exact keyword likhein (Jaise: Ali block r
 
 if st.button("🔍 Search Karein"):
     if not user_query.strip():
-        st.warning("⚠️ Pehle kuch likhein toh sahi!")
+        st.warning("⚠️️ Pehle kuch likhein toh sahi!")
     elif df.empty:
         st.warning("⚠️ Data available nahi hai.")
     else:
@@ -98,7 +100,6 @@ if st.button("🔍 Search Karein"):
                     wa_link = get_clean_whatsapp(item['full_text'])
                     
                     with st.container():
-                        # Record # Heading ko Center mein aur Green Highlight kar diya hai (HTML/CSS ke zariye)
                         st.markdown(
                             f"<h3 style='text-align: center;'><span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px; border: 1px solid #c3e6cb;'>Record #{match_idx}</span></h3>", 
                             unsafe_allow_html=True
