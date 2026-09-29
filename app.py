@@ -87,9 +87,9 @@ if st.button("Dhoondo"):
                 """
                 
                 try:
-                    # Updated model name to gemini-3.8-flash as requested by API error logs
+                    # Using stable gemini-1.5-flash model
                     response = client.models.generate_content(
-                        model='gemini-3.8-flash',
+                        model='gemini-1.5-flash',
                         contents=prompt,
                     )
                     st.success("Jawab Mil Gaya!")
