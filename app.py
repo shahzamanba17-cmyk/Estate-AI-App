@@ -4,7 +4,9 @@ import re
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
-st.title("Deal")st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
+st.title("Deal")
+# Google search se chupane ke liye code
+st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
@@ -45,18 +47,14 @@ def get_search_patterns(query):
     term_patterns = []
     
     for term in terms:
-        # Precinct matching (e.g., p3 matches p3, p-3, precinct 3)
         if re.match(r'^p\d+$', term):
             num = term[1:]
             pattern = r'\b(p-?' + num + r'|precinct\s*' + num + r')\b'
             term_patterns.append(pattern)
-        # Block variations
         elif term in ['block', 'bloc', 'blk']:
             term_patterns.append(r'\b(block|bloc|blk)\b')
-        # Rent variations
         elif term in ['rent', 'rental']:
             term_patterns.append(r'\b(rent|rental)\b')
-        # Exact word match for everything else (e.g., 250 won't match 1250)
         else:
             term_patterns.append(r'\b' + re.escape(term) + r'\b')
             
@@ -71,7 +69,7 @@ def get_clean_whatsapp(text):
         return f"https://wa.me/{num}"
     return None
 
-# User Input (Baghair kisi lamba jumla likhe)
+# User Input
 user_query = st.text_input("Search:", placeholder="Ali block rent ya p3")
 
 if st.button("🔍 Search Karein"):
@@ -97,7 +95,6 @@ if st.button("🔍 Search Karein"):
                 for line in lines:
                     line_lower = line.lower()
                     
-                    # Check karein ke kya saare patterns is line mein exact match hote hain
                     match_found = True
                     for pattern in search_patterns:
                         if not re.search(pattern, line_lower):
