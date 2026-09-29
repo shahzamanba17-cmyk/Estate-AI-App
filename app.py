@@ -87,9 +87,9 @@ if st.button("Dhoondo"):
                 """
                 
                 try:
-                    # Updated model name compatible with google-genai SDK
+                    # Updated model name to gemini-3.8-flash as requested by API error logs
                     response = client.models.generate_content(
-                        model='gemini-2.0-flash',
+                        model='gemini-3.8-flash',
                         contents=prompt,
                     )
                     st.success("Jawab Mil Gaya!")
