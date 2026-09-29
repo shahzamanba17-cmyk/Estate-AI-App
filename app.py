@@ -1,17 +1,15 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
+from google import genai
 
 st.set_page_config(page_title="My Real Estate AI", page_icon="🏠")
 st.title("🏠 Bahria Town Estate AI Bot")
 st.write("Aapki Data Sheets se automatic details nikalne wala bot.")
 
-# API Key Setup
+# API Key aur Client Setup (Updated SDK method)
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
-    # Model name updated
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=API_KEY)
 except Exception as e:
     st.error(f"API Key ka masla: {e}")
 
@@ -85,7 +83,11 @@ if st.button("Dhoondo"):
                 Agar data mein jawab nahi hai toh bata dena.
                 """
                 
-                response = model.generate_content(prompt)
+                # Updated GenAI generate call
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                )
                 
                 st.success("Jawab Mil Gaya!")
                 st.markdown(response.text)
