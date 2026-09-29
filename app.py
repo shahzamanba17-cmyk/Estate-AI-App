@@ -87,21 +87,12 @@ if st.button("Dhoondo"):
                 """
                 
                 try:
-                    # Using the standard SDK model identifier for flash
+                    # Using gemini-2.0-flash which is fully compatible with google-genai client
                     response = client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-2.0-flash',
                         contents=prompt,
                     )
                     st.success("Jawab Mil Gaya!")
                     st.markdown(response.text)
                 except Exception as api_err:
-                    # Fallback to standard 1.5-flash via direct name if 2.5 fails
-                    try:
-                        response = client.models.generate_content(
-                            model='gemini-1.5-flash',
-                            contents=prompt,
-                        )
-                        st.success("Jawab Mil Gaya!")
-                        st.markdown(response.text)
-                    except Exception as e2:
-                        st.error(f"AI Response generate karte waqt error aaya: {e2}")
+                    st.error(f"AI Response generate karte waqt error aaya: {api_err}")
