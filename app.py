@@ -6,14 +6,14 @@ st.set_page_config(page_title="My Real Estate AI", page_icon="🏠")
 st.title("🏠 Bahria Town Estate AI Bot")
 st.write("Aapki Data Sheets se automatic details nikalne wala bot.")
 
-# API Key aur Client Setup with secure checking
+# API Key aur Client Setup
 client = None
 try:
     if "GEMINI_API_KEY" in st.secrets:
         API_KEY = st.secrets["GEMINI_API_KEY"]
         client = genai.Client(api_key=API_KEY)
     else:
-        st.error("⚠️️ Streamlit Secrets mein 'GEMINI_API_KEY' nahi mili! Baraye meharbaani Secrets check karein.")
+        st.error("⚠ Streamlit Secrets mein 'GEMINI_API_KEY' nahi mili!")
 except Exception as e:
     st.error(f"API Key setup error: {e}")
 
@@ -87,8 +87,9 @@ if st.button("Dhoondo"):
                 """
                 
                 try:
+                    # Updated model name compatible with google-genai SDK
                     response = client.models.generate_content(
-                        model='gemini-1.5-flash',
+                        model='gemini-2.0-flash',
                         contents=prompt,
                     )
                     st.success("Jawab Mil Gaya!")
