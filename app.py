@@ -4,34 +4,6 @@ import re
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
-# --- PASSWORD PROTECTION SYSTEM (Session Fix) ---
-def check_password():
-    # Agar pehle se password theek diya ja chuka hai toh dobara nahi poochega
-    if st.session_state.get("password_correct", False):
-        return True
-
-    st.title("🔐 Restrict Access")
-    
-    # Form ka use kiya hai taake Enter dabane ya login par session barqarar rahay
-    with st.form("login_form"):
-        pwd_input = st.text_input("App kholne ke liye Password darj karein:", type="password")
-        submit_btn = st.form_submit_button("Login Karein")
-        
-        if submit_btn:
-            if pwd_input == "Shujahyder1":
-                st.session_state["password_correct"] = True
-                st.rerun()
-            else:
-                st.error("😕 Ghalat password! Sahi password lagayein.")
-                return False
-                
-    return False
-
-# Agar password theek nahi hai, toh app yahin ruk jaye gi
-if not check_password():
-    st.stop()
-
-# --- ASLI APP CODE ---
 st.title("Deal")
 st.write("Clean, fast and exact-keyword search with yellow highlighting.")
 
@@ -126,7 +98,12 @@ if st.button("🔍 Search Karein"):
                     wa_link = get_clean_whatsapp(item['full_text'])
                     
                     with st.container():
-                        st.markdown(f"### **Record #{match_idx}**")
+                        # Record # Heading ko Center mein aur Green Highlight kar diya hai (HTML/CSS ke zariye)
+                        st.markdown(
+                            f"<h3 style='text-align: center;'><span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px; border: 1px solid #c3e6cb;'>Record #{match_idx}</span></h3>", 
+                            unsafe_allow_html=True
+                        )
+                        
                         col1, col2 = st.columns(2)
                         with col1:
                             st.markdown(f"🕒 **Waqt:** {item['date_time']}")
