@@ -4,26 +4,28 @@ import re
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
-# --- PASSWORD PROTECTION SYSTEM ---
+# --- PASSWORD PROTECTION SYSTEM (Session Fix) ---
 def check_password():
-    def password_entered():
-        if st.session_state["password"] == "Shujahyder1":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.title("🔐 Restrict Access")
-        st.text_input("App kholne ke liye Password darj karein:", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.title("🔐 Restrict Access")
-        st.text_input("App kholne ke liye Password darj karein:", type="password", on_change=password_entered, key="password")
-        st.error("😕 Ghalat password! Sahi password lagayein.")
-        return False
-    else:
+    # Agar pehle se password theek diya ja chuka hai toh dobara nahi poochega
+    if st.session_state.get("password_correct", False):
         return True
+
+    st.title("🔐 Restrict Access")
+    
+    # Form ka use kiya hai taake Enter dabane ya login par session barqarar rahay
+    with st.form("login_form"):
+        pwd_input = st.text_input("App kholne ke liye Password darj karein:", type="password")
+        submit_btn = st.form_submit_button("Login Karein")
+        
+        if submit_btn:
+            if pwd_input == "Shujahyder1":
+                st.session_state["password_correct"] = True
+                st.rerun()
+            else:
+                st.error("😕 Ghalat password! Sahi password lagayein.")
+                return False
+                
+    return False
 
 # Agar password theek nahi hai, toh app yahin ruk jaye gi
 if not check_password():
@@ -98,16 +100,13 @@ if st.button("🔍 Search Karein"):
                 
                 for line in lines:
                     line_lower = line.lower()
-                    # Check karein ke kya is line mein keywords hain
                     if all(term in line_lower for term in query_terms):
                         has_match = True
-                        # Matching line ko yellow highlight karna
                         highlighted_line = f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>"
                         formatted_lines.append(highlighted_line)
                     else:
                         formatted_lines.append(line.strip())
                 
-                # Agar row mein match mil jaye, toh poora message save kar lo
                 if has_match:
                     full_message_html = "<br>".join(formatted_lines)
                     matched_results.append({
@@ -134,10 +133,8 @@ if st.button("🔍 Search Karein"):
                         with col2:
                             st.markdown(f"👤 **Source:** {item['sender']}")
                         
-                        # Poora message dikhana aur matching hissay ko yellow highlight karna
                         st.markdown(f"📌 **Poori Detail:**\n\n{item['full_message']}", unsafe_allow_html=True)
                         
-                        # WhatsApp Direct Chat Button
                         if wa_link:
                             st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_link})", unsafe_allow_html=True)
                         
