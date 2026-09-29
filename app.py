@@ -149,7 +149,7 @@ with tab1:
                     st.warning("❌ Aapke keywords wala koi record nahi mila.")
                 else:
                     st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain:")
-                    for match_idx, item in enumerate(matched_results[:50], 1):
+                    for match_idx, item in enumerate(matched_results[:100], 1):
                         wa_link = get_clean_whatsapp(item['full_text'])
                         with st.container():
                             st.markdown(f"### <span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px;'>Record #{match_idx}</span>", unsafe_allow_html=True)
