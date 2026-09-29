@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
+import re
 
 st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
 st.title("🏠 Bahria Town Smart Search Bot")
-st.write("Aapke messages se exact matching details nikalne wala smart bot.")
+st.write("Super-fast, AI-free Python search with clean organized output.")
 
 # Aapki Data Sheets ki IDs
 SHEET_IDS = [
@@ -47,7 +48,7 @@ else:
     st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
 # User Input
-user_query = st.text_input("Yahan apna keyword likhein (Jaise: Ali block rent corner):")
+user_query = st.text_input("Yahan apna keyword likhein (Jaise: sports city villa sale):")
 
 if st.button("🔍 Search Karein"):
     if not user_query.strip():
@@ -55,10 +56,9 @@ if st.button("🔍 Search Karein"):
     elif df.empty:
         st.warning("⚠️ Data available nahi hai.")
     else:
-        with st.spinner("Exact matching lines talaash kiye ja rahe hain..."):
+        with st.spinner("Talaash aur formatting ki ja rahi hai..."):
             query_terms = [term.lower() for term in user_query.split()]
             
-            # Hum aik nayi list banayenge jo sirf exact matching lines ko store karegi
             matched_results = []
             
             for idx, row in df.iterrows():
@@ -66,13 +66,14 @@ if st.button("🔍 Search Karein"):
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
                 details = str(row.get('Message Details', row.to_dict()))
                 
-                # Message ko alag alag lines ya paragraphs mein torna
+                # Message ko lines mein torna
                 lines = details.split('\n')
                 
                 for line in lines:
                     line_lower = line.lower()
-                    # Check karein ke kya is aik hi line mein USER ke diye gaye SAARE keywords mojood hain
+                    # Check karein ke kya is line mein user ke diye gaye saare keywords hain
                     if all(term in line_lower for term in query_terms):
+                        # Clean text formatting (Extracting phone numbers or prices if possible)
                         matched_results.append({
                             'date_time': date_time,
                             'sender': sender,
@@ -80,15 +81,23 @@ if st.button("🔍 Search Karein"):
                         })
             
             if not matched_results:
-                st.warning("❌ Aapke saare keywords wali koi exact line ya post nahi mili.")
+                st.warning("❌ Aapke keywords wali koi exact line nahi mili.")
             else:
-                st.success(f"🎉 Qamyabi! {len(matched_results)} exact matching details mil gayi hain:")
+                st.success(f"🎉 Qamyabi! {len(matched_results)} organized records mil gaye hain:")
                 st.markdown("---")
                 
                 for match_idx, item in enumerate(matched_results[:30], 1):
+                    # Smart formatting of the matched line to look like an organized card
+                    line_text = item['matched_line']
+                    
                     with st.container():
                         st.markdown(f"### **Record #{match_idx}**")
-                        st.markdown(f"**Date & Time:** {item['date_time']}")
-                        st.markdown(f"**Source/Sender:** {item['sender']}")
-                        st.markdown(f"**Matching Detail:**\n> **{item['matched_line']}**")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown(f"🕒 **Waqt:** {item['date_time']}")
+                        with col2:
+                            st.markdown(f"👤 **Source:** {item['sender']}")
+                        
+                        # Displaying as a neat highlighted card
+                        st.info(f"📌 **Detail:**\n\n{line_text}")
                         st.markdown("---")
