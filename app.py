@@ -5,13 +5,11 @@ import re
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
 st.title("Deal")
-# Google search se chupane ke liye code
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
 
-# Data load karne ka function
 @st.cache_data(ttl=3600) 
 def load_data():
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
@@ -29,7 +27,6 @@ def load_data():
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
-# Refresh button (Sirf icon aur click hone par green indicator) aur sirf record number
 col_btn, col_info = st.columns([1, 4])
 with col_btn:
     if st.button("🔄"):
@@ -41,7 +38,7 @@ if df.empty:
 else:
     st.markdown(f"🟢 **{len(df)}**")
 
-# Precise & Smart Keyword Pattern Generator (Exact Word Boundary + Smart Synonyms)
+# Precise & Smart Keyword Pattern Generator
 def get_search_patterns(query):
     terms = query.lower().split()
     term_patterns = []
@@ -69,7 +66,6 @@ def get_clean_whatsapp(text):
         return f"https://wa.me/{num}"
     return None
 
-# User Input
 user_query = st.text_input("Search:", placeholder="Ali block rent ya p3")
 
 if st.button("🔍 Search Karein"):
@@ -86,35 +82,63 @@ if st.button("🔍 Search Karein"):
             for idx, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
-                details = str(row.get('Message Details', row.to_dict()))
+                details = str(row.get('Message Details', row.to_dict())).strip()
                 
-                lines = details.split('\n')
-                has_match = False
-                formatted_lines = []
+                # 1. Message ko Chunks (Deals) mein todna (khali line par split karna)
+                paragraphs = re.split(r'\n\s*\n', details)
+                if not paragraphs:
+                    continue
                 
-                for line in lines:
-                    line_lower = line.lower()
+                # 2. Header Inheritance: Top Heading ko yaad rakhna
+                header_chunk = paragraphs[0]
+                header_lower = header_chunk.lower()
+                
+                matched_chunks = []
+                
+                # 3. Har paragraph (deal) ko alag check karna
+                for i, para in enumerate(paragraphs):
+                    para_lower = para.lower()
                     
-                    match_found = True
+                    chunk_match = True
                     for pattern in search_patterns:
-                        if not re.search(pattern, line_lower):
-                            match_found = False
+                        # Ya toh keyword is chunk mein ho, ya phir Top Header mein
+                        if not (re.search(pattern, para_lower) or re.search(pattern, header_lower)):
+                            chunk_match = False
                             break
                     
-                    if match_found and search_patterns:
-                        has_match = True
-                        highlighted_line = f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>"
-                        formatted_lines.append(highlighted_line)
-                    else:
-                        formatted_lines.append(line.strip())
-                
-                if has_match:
-                    full_message_html = "<br>".join(formatted_lines)
+                    # Agar yeh choti deal match ho gayi
+                    if chunk_match and search_patterns:
+                        lines = para.split('\n')
+                        hl_lines = []
+                        for line in lines:
+                            if any(re.search(p, line.lower()) for p in search_patterns):
+                                hl_lines.append(f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>")
+                            else:
+                                hl_lines.append(line.strip())
+                        
+                        formatted_para = "<br>".join(hl_lines)
+                        
+                        # Agar top heading khud hi match hui thi toh usay nishani ke taur par likhein
+                        if i == 0:
+                            matched_chunks.append(f"<b>[Top Heading / Context]</b><br>{formatted_para}")
+                        else:
+                            matched_chunks.append(f"<b>[Matched Deal]</b><br>{formatted_para}")
+
+                # Agar kisi bhi chunk (deal) mein match mil gaya toh record save karein
+                if matched_chunks:
+                    matched_html = "<br><br>".join(matched_chunks)
+                    
+                    # Agar top heading specifically match chunks mein nahi aayi lekin context de rahi thi
+                    if not any("[Top Heading" in chunk for chunk in matched_chunks):
+                        header_html = f"<div style='color: gray; font-size: 0.9em;'><i>Context (Shuru Ki Line):<br>{header_chunk.replace(chr(10), '<br>')}</i></div><br>"
+                        matched_html = header_html + matched_html
+
                     matched_results.append({
                         'date_time': date_time,
                         'sender': sender,
-                        'full_message': full_message_html,
-                        'full_text': f"{sender} {details}"
+                        'matched_html': matched_html,
+                        'full_text': f"{sender} {details}",
+                        'original_details': details.replace('\n', '<br>')
                     })
             
             if not matched_results:
@@ -138,9 +162,14 @@ if st.button("🔍 Search Karein"):
                         with col2:
                             st.markdown(f"👤 **Source:** {item['sender']}")
                         
-                        st.markdown(f"📌 **Poori Detail:**\n\n{item['full_message']}", unsafe_allow_html=True)
+                        # Sirf kaam ki deal dikhayega
+                        st.markdown(f"📌 **Relevant Deals:**<br>{item['matched_html']}", unsafe_allow_html=True)
                         
                         if wa_link:
                             st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_link})", unsafe_allow_html=True)
+                        
+                        # Kachra/irrelevant deals chhupane ke liye Expander
+                        with st.expander("👀 Poora Original Message Dekhein (Show Full List)"):
+                            st.markdown(item['original_details'], unsafe_allow_html=True)
                         
                         st.markdown("---")
