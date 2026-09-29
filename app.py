@@ -27,7 +27,7 @@ def load_data():
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
-# Refresh button (Sirf icon ke sath aur click hone par green indicator)
+# Refresh button (Sirf icon aur click hone par green indicator) aur sirf record number (e.g. 1438)
 col_btn, col_info = st.columns([1, 4])
 with col_btn:
     if st.button("🔄"):
@@ -37,8 +37,7 @@ with col_btn:
 if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
 else:
-    # Sirf number aur green icon state
-    st.markdown(f"🟢 **{len(df)}** records load ho gaye hain (Naye se Purane ki tarah sorted).")
+    st.markdown(f"🟢 **{len(df)}**")
 
 # Clean WhatsApp Direct Number Extractor
 def get_clean_whatsapp(text):
@@ -49,12 +48,12 @@ def get_clean_whatsapp(text):
         return f"https://wa.me/{num}"
     return None
 
-# User Input
-user_query = st.text_input("Yahan apna exact keyword likhein (Jaise: Ali block rent):")
+# User Input (Baghair kisi lamba jumla likhe)
+user_query = st.text_input("Search:", placeholder="Ali block rent")
 
 if st.button("🔍 Search Karein"):
     if not user_query.strip():
-        st.warning("⚠️️ Pehle kuch likhein toh sahi!")
+        st.warning("⚠️ Pehle kuch likhein toh sahi!")
     elif df.empty:
         st.warning("⚠️ Data available nahi hai.")
     else:
