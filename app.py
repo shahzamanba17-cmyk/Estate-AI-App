@@ -84,7 +84,7 @@ if st.button("🔍 Search Karein"):
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
                 details = str(row.get('Message Details', row.to_dict())).strip()
                 
-                # 1. Message ko Chunks (Deals) mein todna (khali line par split karna)
+                # 1. Message ko Chunks (Deals) mein todna
                 paragraphs = re.split(r'\n\s*\n', details)
                 if not paragraphs:
                     continue
@@ -101,7 +101,6 @@ if st.button("🔍 Search Karein"):
                     
                     chunk_match = True
                     for pattern in search_patterns:
-                        # Ya toh keyword is chunk mein ho, ya phir Top Header mein
                         if not (re.search(pattern, para_lower) or re.search(pattern, header_lower)):
                             chunk_match = False
                             break
@@ -118,17 +117,27 @@ if st.button("🔍 Search Karein"):
                         
                         formatted_para = "<br>".join(hl_lines)
                         
-                        # Agar top heading khud hi match hui thi toh usay nishani ke taur par likhein
                         if i == 0:
                             matched_chunks.append(f"<b>[Top Heading / Context]</b><br>{formatted_para}")
                         else:
                             matched_chunks.append(f"<b>[Matched Deal]</b><br>{formatted_para}")
 
+                # 4. Poore Original Message ki Matching lines ko Highlight karna
+                full_message_lines = details.split('\n')
+                highlighted_full_message = []
+                for line in full_message_lines:
+                    # Agar is original line mein koi pattern ho toh highlight karein
+                    if any(re.search(p, line.lower()) for p in search_patterns):
+                        highlighted_full_message.append(f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>")
+                    else:
+                        highlighted_full_message.append(line.strip())
+                
+                highlighted_original_details = "<br>".join(highlighted_full_message)
+
                 # Agar kisi bhi chunk (deal) mein match mil gaya toh record save karein
                 if matched_chunks:
                     matched_html = "<br><br>".join(matched_chunks)
                     
-                    # Agar top heading specifically match chunks mein nahi aayi lekin context de rahi thi
                     if not any("[Top Heading" in chunk for chunk in matched_chunks):
                         header_html = f"<div style='color: gray; font-size: 0.9em;'><i>Context (Shuru Ki Line):<br>{header_chunk.replace(chr(10), '<br>')}</i></div><br>"
                         matched_html = header_html + matched_html
@@ -138,7 +147,7 @@ if st.button("🔍 Search Karein"):
                         'sender': sender,
                         'matched_html': matched_html,
                         'full_text': f"{sender} {details}",
-                        'original_details': details.replace('\n', '<br>')
+                        'original_details': highlighted_original_details  # Yahan naya highlighted text add kiya hai
                     })
             
             if not matched_results:
@@ -162,14 +171,13 @@ if st.button("🔍 Search Karein"):
                         with col2:
                             st.markdown(f"👤 **Source:** {item['sender']}")
                         
-                        # Sirf kaam ki deal dikhayega
                         st.markdown(f"📌 **Relevant Deals:**<br>{item['matched_html']}", unsafe_allow_html=True)
                         
                         if wa_link:
                             st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_link})", unsafe_allow_html=True)
                         
-                        # Kachra/irrelevant deals chhupane ke liye Expander
                         with st.expander("👀 Poora Original Message Dekhein (Show Full List)"):
+                            # Ab original message mein bhi matching text yellow highlight ho kar aayega
                             st.markdown(item['original_details'], unsafe_allow_html=True)
                         
                         st.markdown("---")
