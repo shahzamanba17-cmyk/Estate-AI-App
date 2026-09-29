@@ -5,7 +5,7 @@ import hashlib
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide") 
 
-st.title("Deal")
+st.markdown("<h1 style='text-align: center;'>Deal</h1>", unsafe_allow_html=True)
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
 # Aapki Asli / Original Google Sheet ki ID
@@ -102,9 +102,15 @@ def render_bookmark_buttons(item_dict, unique_key_prefix):
             else: st.session_state.touqeer_bm[uid] = item_dict
             st.rerun()
 
-def render_deal_ui(item, key_prefix):
+def render_deal_ui(item, key_prefix, record_num=None):
     if item['source_tab'] == 'tab1':
-        st.markdown(f"### <span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px;'>Deal</span>", unsafe_allow_html=True)
+        # Yahan Record # wala UI wapas laga diya hai aur center kar diya hai
+        title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
+        st.markdown(
+            f"<h3 style='text-align: center;'><span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px; border: 1px solid #c3e6cb;'>{title_text}</span></h3>", 
+            unsafe_allow_html=True
+        )
+        
         c1, c2 = st.columns(2)
         with c1: st.markdown(f"🕒 **Waqt:** {item['date_time']}")
         with c2: st.markdown(f"👤 **Source:** {item['sender']}")
@@ -235,7 +241,8 @@ with tab1:
             else:
                 st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain:")
                 for match_idx, item in enumerate(matched_results[:50], 1):
-                    render_deal_ui(item, f"t1_{match_idx}")
+                    # Yahan match_idx pass kar diya taake numbering show ho jaye
+                    render_deal_ui(item, f"t1_{match_idx}", match_idx)
 
 # ------------------------------------------
 # TAB 2: DEAL MATCHER (Required vs Available)
@@ -343,9 +350,9 @@ with tab3:
     if not st.session_state.shahjhan_bm:
         st.info("Abhi tak aapne koi deal bookmark nahi ki.")
     else:
-        # Dictionary ki values ko list bana kar show karna
         for i, item in enumerate(reversed(list(st.session_state.shahjhan_bm.values()))):
-            render_deal_ui(item, f"bm_sj_{i}")
+            # Bookmarks mein bhi numbering de di hai
+            render_deal_ui(item, f"bm_sj_{i}", i + 1)
 
 # ------------------------------------------
 # TAB 4: TOUQEER'S BOOKMARKS
@@ -356,4 +363,5 @@ with tab4:
         st.info("Abhi tak aapne koi deal bookmark nahi ki.")
     else:
         for i, item in enumerate(reversed(list(st.session_state.touqeer_bm.values()))):
-            render_deal_ui(item, f"bm_tq_{i}")
+            # Bookmarks mein bhi numbering de di hai
+            render_deal_ui(item, f"bm_tq_{i}", i + 1)
