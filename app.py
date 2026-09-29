@@ -36,7 +36,7 @@ def load_all_data():
             combined_df['Parsed_Date'] = pd.to_datetime(combined_df['Date & Time'], errors='coerce')
             combined_df = combined_df.sort_values(by='Parsed_Date', ascending=False)
         return combined_df
-    return pd.DataFrame(), 0
+    return pd.DataFrame()
 
 with st.spinner("Data load ho raha hai..."):
     df = load_all_data()
@@ -58,7 +58,7 @@ if st.button("🔍 Search Karein"):
         with st.spinner("Exact matching tukre talaash kiye ja rahe hain..."):
             query_terms = user_query.lower().split()
             
-            # Filter rows containing all keywords
+            # Filter rows containing keywords
             mask = pd.Series([True] * len(df))
             for term in query_terms:
                 term_mask = df.astype(str).apply(lambda x: x.str.lower().str.contains(term, na=False)).any(axis=1)
@@ -74,26 +74,24 @@ if st.button("🔍 Search Karein"):
                 
                 match_count = 0
                 for idx, row in filtered_df.iterrows():
-                    # Poori row ke text ko lines mein tornay ke liye
-                    row_text = str(row.to_dict())
-                    lines = [line.strip() for line in row_text.split('\n') if line.strip()]
-                    
-                    # Sirf woh line ya hissa nikalna jo keyword se match karta ho
-                    matching_snippets = []
-                    for line in lines:
-                        if any(term in line.lower() for term in query_terms):
-                            matching_snippets.append(line)
-                    
-                    # Agar specific lines na milen toh poori details dikha dein, warna sirf matching hissa
-                    display_text = "\n".join(matching_snippets) if matching_snippets else row_text
-                    
                     match_count += 1
+                    
+                    # Columns nikalna safely
+                    date_time = row.get('Date & Time', 'N/A')
+                    sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
+                    
+                    # Message Details ya main text nikalna
+                    details = ""
+                    if 'Message Details' in row and pd.notna(row['Message Details']):
+                        details = str(row['Message Details'])
+                    else:
+                        # Fallback agar koi aur column ho
+                        details = str(row.to_dict())
+
+                    # Clean formatted card output
                     with st.container():
-                        st.markdown(f"**Result #{match_count}**")
-                        if 'Date & Time' in row and pd.notna(row['Date & Time']):
-                            st.markdown(f"🕒 **Waqt (Time):** {row['Date & Time']}")
-                        if 'Source/Sender' in row and pd.notna(row['Source/Sender']):
-                            st.markdown(f"👤 **Sender:** {row['Source/Sender']}")
-                        
-                        st.markdown(f"📋 **Mutaliqa Details:**\n{display_text}")
+                        st.markdown(f"### **Record #{match_count}**")
+                        st.markdown(f"**Date & Time:** {date_time}")
+                        st.markdown(f"**Source/Sender:** {sender}")
+                        st.markdown(f"**Details:**\n{details}")
                         st.markdown("---")
