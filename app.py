@@ -6,7 +6,7 @@ st.set_page_config(page_title="My Real Estate AI", page_icon="🏠")
 st.title("🏠 Bahria Town Estate AI Bot")
 st.write("Aapki Data Sheets se automatic details nikalne wala bot.")
 
-# API Key aur Client Setup (Updated SDK method)
+# API Key aur Client Setup
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
@@ -83,9 +83,9 @@ if st.button("Dhoondo"):
                 Agar data mein jawab nahi hai toh bata dena.
                 """
                 
-                # Updated GenAI generate call
+                # Correct model name: gemini-1.5-flash
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-1.5-flash',
                     contents=prompt,
                 )
                 
