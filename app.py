@@ -94,6 +94,7 @@ if st.button("🔍 Search Karein"):
                 header_lower = header_chunk.lower()
                 
                 matched_chunks = []
+                formatted_full_message_paragraphs = []
                 
                 # 3. Har paragraph (deal) ko alag check karna
                 for i, para in enumerate(paragraphs):
@@ -105,7 +106,7 @@ if st.button("🔍 Search Karein"):
                             chunk_match = False
                             break
                     
-                    # Agar yeh choti deal match ho gayi
+                    # Agar yeh makhsoos deal match ho gayi
                     if chunk_match and search_patterns:
                         lines = para.split('\n')
                         hl_lines = []
@@ -121,18 +122,12 @@ if st.button("🔍 Search Karein"):
                             matched_chunks.append(f"<b>[Top Heading / Context]</b><br>{formatted_para}")
                         else:
                             matched_chunks.append(f"<b>[Matched Deal]</b><br>{formatted_para}")
-
-                # 4. Poore Original Message ki Matching lines ko Highlight karna
-                full_message_lines = details.split('\n')
-                highlighted_full_message = []
-                for line in full_message_lines:
-                    # Agar is original line mein koi pattern ho toh highlight karein
-                    if any(re.search(p, line.lower()) for p in search_patterns):
-                        highlighted_full_message.append(f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>")
+                            
+                        # Matching deal ko highlight ke sath full message list mein daalna
+                        formatted_full_message_paragraphs.append(formatted_para)
                     else:
-                        highlighted_full_message.append(line.strip())
-                
-                highlighted_original_details = "<br>".join(highlighted_full_message)
+                        # Jo deal match nahi hui usay BINA highlight kiye full message list mein daalna
+                        formatted_full_message_paragraphs.append(para.replace('\n', '<br>'))
 
                 # Agar kisi bhi chunk (deal) mein match mil gaya toh record save karein
                 if matched_chunks:
@@ -142,12 +137,15 @@ if st.button("🔍 Search Karein"):
                         header_html = f"<div style='color: gray; font-size: 0.9em;'><i>Context (Shuru Ki Line):<br>{header_chunk.replace(chr(10), '<br>')}</i></div><br>"
                         matched_html = header_html + matched_html
 
+                    # Poora original message sirf matched deals ke highlights ke sath
+                    highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
+
                     matched_results.append({
                         'date_time': date_time,
                         'sender': sender,
                         'matched_html': matched_html,
                         'full_text': f"{sender} {details}",
-                        'original_details': highlighted_original_details  # Yahan naya highlighted text add kiya hai
+                        'original_details': highlighted_original_details 
                     })
             
             if not matched_results:
@@ -177,7 +175,6 @@ if st.button("🔍 Search Karein"):
                             st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_link})", unsafe_allow_html=True)
                         
                         with st.expander("👀 Poora Original Message Dekhein (Show Full List)"):
-                            # Ab original message mein bhi matching text yellow highlight ho kar aayega
                             st.markdown(item['original_details'], unsafe_allow_html=True)
                         
                         st.markdown("---")
