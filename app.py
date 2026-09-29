@@ -14,11 +14,11 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.title("🔐 Restrict Access - Bahria Town Bot")
+        st.title("🔐 Restrict Access")
         st.text_input("App kholne ke liye Password darj karein:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        st.title("🔐 Restrict Access - Bahria Town Bot")
+        st.title("🔐 Restrict Access")
         st.text_input("App kholne ke liye Password darj karein:", type="password", on_change=password_entered, key="password")
         st.error("😕 Ghalat password! Sahi password lagayein.")
         return False
@@ -30,7 +30,7 @@ if not check_password():
     st.stop()
 
 # --- ASLI APP CODE ---
-st.title("🏠 Bahria Town Smart Search Bot")
+st.title("Deal")
 st.write("Clean, fast and exact-keyword search with yellow highlighting.")
 
 # Aapki Asli / Original Google Sheet ki ID
@@ -101,7 +101,7 @@ if st.button("🔍 Search Karein"):
                     # Check karein ke kya is line mein keywords hain
                     if all(term in line_lower for term in query_terms):
                         has_match = True
-                        # Matching line ko yellow highlight karna (<mark> tag ke zariye)
+                        # Matching line ko yellow highlight karna
                         highlighted_line = f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>"
                         formatted_lines.append(highlighted_line)
                     else:
