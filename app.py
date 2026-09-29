@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import re
 
 st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
 st.title("🏠 Bahria Town Smart Search Bot")
@@ -73,7 +72,6 @@ if st.button("🔍 Search Karein"):
                     line_lower = line.lower()
                     # Check karein ke kya is line mein user ke diye gaye saare keywords hain
                     if all(term in line_lower for term in query_terms):
-                        # Clean text formatting (Extracting phone numbers or prices if possible)
                         matched_results.append({
                             'date_time': date_time,
                             'sender': sender,
@@ -83,11 +81,11 @@ if st.button("🔍 Search Karein"):
             if not matched_results:
                 st.warning("❌ Aapke keywords wali koi exact line nahi mili.")
             else:
-                st.success(f"🎉 Qamyabi! {len(matched_results)} organized records mil gaye hain:")
+                st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain (Showing up to 50):")
                 st.markdown("---")
                 
-                for match_idx, item in enumerate(matched_results[:30], 1):
-                    # Smart formatting of the matched line to look like an organized card
+                # Limit increased to 50 results
+                for match_idx, item in enumerate(matched_results[:50], 1):
                     line_text = item['matched_line']
                     
                     with st.container():
@@ -98,6 +96,5 @@ if st.button("🔍 Search Karein"):
                         with col2:
                             st.markdown(f"👤 **Source:** {item['sender']}")
                         
-                        # Displaying as a neat highlighted card
                         st.info(f"📌 **Detail:**\n\n{line_text}")
                         st.markdown("---")
