@@ -27,7 +27,7 @@ def load_data():
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
-# Refresh button (Sirf icon aur click hone par green indicator) aur sirf record number (e.g. 1438)
+# Refresh button (Sirf icon aur click hone par green indicator) aur sirf record number
 col_btn, col_info = st.columns([1, 4])
 with col_btn:
     if st.button("🔄"):
@@ -39,6 +39,29 @@ if df.empty:
 else:
     st.markdown(f"🟢 **{len(df)}**")
 
+# Precise & Smart Keyword Pattern Generator (Exact Word Boundary + Smart Synonyms)
+def get_search_patterns(query):
+    terms = query.lower().split()
+    term_patterns = []
+    
+    for term in terms:
+        # Precinct matching (e.g., p3 matches p3, p-3, precinct 3)
+        if re.match(r'^p\d+$', term):
+            num = term[1:]
+            pattern = r'\b(p-?' + num + r'|precinct\s*' + num + r')\b'
+            term_patterns.append(pattern)
+        # Block variations
+        elif term in ['block', 'bloc', 'blk']:
+            term_patterns.append(r'\b(block|bloc|blk)\b')
+        # Rent variations
+        elif term in ['rent', 'rental']:
+            term_patterns.append(r'\b(rent|rental)\b')
+        # Exact word match for everything else (e.g., 250 won't match 1250)
+        else:
+            term_patterns.append(r'\b' + re.escape(term) + r'\b')
+            
+    return term_patterns
+
 # Clean WhatsApp Direct Number Extractor
 def get_clean_whatsapp(text):
     phone_pattern = r'(?:\+92|0)?(3[0-9]{9})'
@@ -49,7 +72,7 @@ def get_clean_whatsapp(text):
     return None
 
 # User Input (Baghair kisi lamba jumla likhe)
-user_query = st.text_input("Search:", placeholder="Ali block rent")
+user_query = st.text_input("Search:", placeholder="Ali block rent ya p3")
 
 if st.button("🔍 Search Karein"):
     if not user_query.strip():
@@ -58,7 +81,7 @@ if st.button("🔍 Search Karein"):
         st.warning("⚠️ Data available nahi hai.")
     else:
         with st.spinner("Talaash ki ja rahi hai..."):
-            query_terms = [term.lower() for term in user_query.split()]
+            search_patterns = get_search_patterns(user_query)
             
             matched_results = []
             
@@ -73,7 +96,15 @@ if st.button("🔍 Search Karein"):
                 
                 for line in lines:
                     line_lower = line.lower()
-                    if all(term in line_lower for term in query_terms):
+                    
+                    # Check karein ke kya saare patterns is line mein exact match hote hain
+                    match_found = True
+                    for pattern in search_patterns:
+                        if not re.search(pattern, line_lower):
+                            match_found = False
+                            break
+                    
+                    if match_found and search_patterns:
                         has_match = True
                         highlighted_line = f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>"
                         formatted_lines.append(highlighted_line)
