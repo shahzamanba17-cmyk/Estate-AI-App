@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 
-st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
+st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
 # --- PASSWORD PROTECTION SYSTEM ---
 def check_password():
