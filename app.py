@@ -42,7 +42,7 @@ with st.spinner("Data load ho raha hai..."):
     df = load_all_data()
 
 if df.empty:
-    st.error("⚠️ Data load nahi hua! Sheets ki 'Share' settings check karein.")
+    st.error("⚠️️ Data load nahi hua! Sheets ki 'Share' settings check karein.")
 else:
     st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
@@ -58,7 +58,7 @@ if st.button("🔍 Search Karein"):
         with st.spinner("Exact matching tukre talaash kiye ja rahe hain..."):
             query_terms = user_query.lower().split()
             
-            # Filter rows containing keywords
+            # Filter rows containing all keywords anywhere in the row
             mask = pd.Series([True] * len(df))
             for term in query_terms:
                 term_mask = df.astype(str).apply(lambda x: x.str.lower().str.contains(term, na=False)).any(axis=1)
@@ -74,24 +74,30 @@ if st.button("🔍 Search Karein"):
                 
                 match_count = 0
                 for idx, row in filtered_df.iterrows():
-                    match_count += 1
-                    
-                    # Columns nikalna safely
                     date_time = row.get('Date & Time', 'N/A')
                     sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
+                    details = str(row.get('Message Details', row.to_dict()))
                     
-                    # Message Details ya main text nikalna
-                    details = ""
-                    if 'Message Details' in row and pd.notna(row['Message Details']):
-                        details = str(row['Message Details'])
-                    else:
-                        # Fallback agar koi aur column ho
-                        details = str(row.to_dict())
-
-                    # Clean formatted card output
+                    # Message ko sentences ya lines mein tor kar sirf woh line nikalna jisme saare keywords hon
+                    lines = details.split('\n')
+                    matching_lines = []
+                    
+                    for line in lines:
+                        line_lower = line.lower()
+                        # Check karein ke kya is line mein user ke diye gaye saare keywords mojood hain
+                        if all(term in line_lower for term in query_terms):
+                            matching_lines.append(line.strip())
+                    
+                    # Agar kisi aik line mein saare keywords na hon, toh poore message mein se wo paragraphs nikal lo jisme keywords hon
+                    if not matching_lines:
+                        matching_lines = [details] # Fallback
+                        
+                    cleaned_details = "\n".join(matching_lines)
+                    
+                    match_count += 1
                     with st.container():
                         st.markdown(f"### **Record #{match_count}**")
                         st.markdown(f"**Date & Time:** {date_time}")
                         st.markdown(f"**Source/Sender:** {sender}")
-                        st.markdown(f"**Details:**\n{details}")
+                        st.markdown(f"**Details:**\n{cleaned_details}")
                         st.markdown("---")
