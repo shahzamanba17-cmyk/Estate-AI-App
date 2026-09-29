@@ -6,12 +6,16 @@ st.set_page_config(page_title="My Real Estate AI", page_icon="🏠")
 st.title("🏠 Bahria Town Estate AI Bot")
 st.write("Aapki Data Sheets se automatic details nikalne wala bot.")
 
-# API Key aur Client Setup
+# API Key aur Client Setup with secure checking
+client = None
 try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    client = genai.Client(api_key=API_KEY)
+    if "GEMINI_API_KEY" in st.secrets:
+        API_KEY = st.secrets["GEMINI_API_KEY"]
+        client = genai.Client(api_key=API_KEY)
+    else:
+        st.error("⚠️️ Streamlit Secrets mein 'GEMINI_API_KEY' nahi mili! Baraye meharbaani Secrets check karein.")
 except Exception as e:
-    st.error(f"API Key ka masla: {e}")
+    st.error(f"API Key setup error: {e}")
 
 # Aapki Data Sheets ki IDs
 SHEET_IDS = [
@@ -43,7 +47,6 @@ def load_all_data():
         return pd.concat(all_data, ignore_index=True), loaded_sheets
     return pd.DataFrame(), 0
 
-# Data Loading status
 with st.spinner("Data Load ho raha hai..."):
     df, sheets_count = load_all_data()
 
@@ -52,17 +55,17 @@ if df.empty:
 else:
     st.success(f"✅ {sheets_count} sheets se Data kamyabi se load ho gaya hai (Total Rows: {len(df)}).")
 
-# Search Section
 user_query = st.text_input("Aapka sawal (Jaise: P1 mein rent ke liye kya hai?):")
 
 if st.button("Dhoondo"):
     if not user_query:
         st.warning("⚠️ Bhai koi sawal to likho!")
+    elif client is None:
+        st.error("⚠️ AI Client configure nahi hua, apni Streamlit Secrets mein API key check karein.")
     elif df.empty:
         st.warning("⚠️ Data access nahi ho raha, pehle upar 'Data Refresh' button dabayen.")
     else:
         with st.spinner("AI aapke messages parh raha hai..."):
-            # Filtering Data
             keywords = user_query.lower().replace('mein', '').replace('ke', '').replace('liye', '').replace('kya', '').replace('hai', '').split()
             mask = df.astype(str).apply(lambda x: x.str.lower().str.contains('|'.join(keywords), na=False)).any(axis=1)
             filtered_df = df[mask].head(100) 
@@ -83,11 +86,12 @@ if st.button("Dhoondo"):
                 Agar data mein jawab nahi hai toh bata dena.
                 """
                 
-                # Correct model name: gemini-1.5-flash
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=prompt,
-                )
-                
-                st.success("Jawab Mil Gaya!")
-                st.markdown(response.text)
+                try:
+                    response = client.models.generate_content(
+                        model='gemini-1.5-flash',
+                        contents=prompt,
+                    )
+                    st.success("Jawab Mil Gaya!")
+                    st.markdown(response.text)
+                except Exception as api_err:
+                    st.error(f"AI Response generate karte waqt error aaya: {api_err}")
