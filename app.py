@@ -10,11 +10,12 @@ st.write("Aapki Data Sheets se automatic details nikalne wala bot.")
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=API_KEY)
+    # Model name updated
     model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"API Key ka masla: {e}")
 
-# Yahan Aapki Nayi Data Sheets ki IDs hain
+# Aapki Data Sheets ki IDs
 SHEET_IDS = [
     "139c3ogaD0-5YruC_t4lXZbM7_R4DAITsctnknOdKnaQ", 
     "1xQtra6SEx3_s_pytJtauVySGesOJ9OjVpNjV5Xlg04g"
