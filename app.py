@@ -4,7 +4,7 @@ import re
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="centered")
 
-st.title("Deal")
+st.title("Deal")st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
