@@ -4,7 +4,7 @@ import re
 
 st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
 st.title("🏠 Bahria Town Smart Search Bot")
-st.write("Aapki original Google Sheet se direct data search karne wala smart bot.")
+st.write("Smart Python Search with Auto-Synonym & WhatsApp Direct Links.")
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
@@ -21,7 +21,6 @@ def load_data():
     try:
         df = pd.read_csv(url)
         if not df.empty:
-            # Date & Time ke mutabiq New to Old sort karna (Latest sab se upar)
             if 'Date & Time' in df.columns:
                 df['Parsed_Date'] = pd.to_datetime(df['Date & Time'], errors='coerce')
                 df = df.sort_values(by='Parsed_Date', ascending=False)
@@ -34,27 +33,51 @@ with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
 if df.empty:
-    st.error("⚠️ Data load nahi hua! Ensure kar lein ke aapki Google Sheet ki 'Share' settings 'Anyone with the link can view' par hain.")
+    st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings 'Anyone with the link can view' par check karein.")
 else:
-    st.success(f"✅ Total {len(df)} records aapki original sheet se load ho gaye hain (Naye se Purane ki tarah sorted).")
+    st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
-# Helper function to extract phone numbers and create WhatsApp link
-def get_whatsapp_link(text):
-    # Pakistani phone numbers pattern dhoondne ke liye (jaise 03001234567 ya +923001234567)
+# Smart Synonym Extractor
+def expand_query_terms(query):
+    terms = query.lower().split()
+    expanded = set(terms)
+    
+    for term in terms:
+        if term in ['block', 'bloc', 'blk']:
+            expanded.update(['block', 'bloc', 'blk'])
+        elif term in ['precinct', 'p', 'prec']:
+            expanded.update(['precinct', 'p', 'prec', 'p-'])
+        elif term in ['rent', 'rental']:
+            expanded.update(['rent', 'rental'])
+        elif term in ['sale', 'selling']:
+            expanded.update(['sale', 'selling', 'for sale'])
+        elif term in ['corner', 'c/nr']:
+            expanded.update(['corner', 'c/nr'])
+            
+    return list(expanded)
+
+# Helper function to get clean WhatsApp Direct Chat or Group Link
+def get_whatsapp_info(text):
+    # Pehle check karein agar text mein koi direct WhatsApp group link (`chat.whatsapp.com`) mojood hai
+    group_link_match = re.search(r'https?://chat\.whatsapp\.com/[A-Za-z0-9]+', text)
+    if group_link_match:
+        return group_link_match.group(0), "Group Link"
+    
+    # Agar group link na ho, toh personal phone number dhoond kar direct chat link banayein
     phone_pattern = r'(?:\+92|0)?3[0-9]{9}'
     match = re.search(phone_pattern, text)
     if match:
         num = match.group(0)
-        # Agar number 0 se shuru ho raha hai toh 92 laga kar international format bana do
         if num.startswith('0'):
             num = '92' + num[1:]
         elif not num.startswith('92'):
             num = '92' + num
-        return f"https://wa.me/{num}"
-    return None
+        return f"https://wa.me/{num}", "Direct Number"
+        
+    return None, None
 
 # User Input
-user_query = st.text_input("Yahan apna keyword likhein (Jaise: Ali block rent corner):")
+user_query = st.text_input("Yahan apna keyword likhein (Jaise: Ali block rent, P12 corner):")
 
 if st.button("🔍 Search Karein"):
     if not user_query.strip():
@@ -62,8 +85,8 @@ if st.button("🔍 Search Karein"):
     elif df.empty:
         st.warning("⚠️ Data available nahi hai.")
     else:
-        with st.spinner("Exact matching lines talaash kiye ja rahe hain..."):
-            query_terms = [term.lower() for term in user_query.split()]
+        with st.spinner("Smart spelling aur variations ke sath talaash jari hai..."):
+            query_terms = expand_query_terms(user_query)
             
             matched_results = []
             
@@ -72,18 +95,16 @@ if st.button("🔍 Search Karein"):
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
                 details = str(row.get('Message Details', row.to_dict()))
                 
-                # Message ko lines mein torna
                 lines = details.split('\n')
                 
                 for line in lines:
                     line_lower = line.lower()
-                    # Check karein ke kya is aik hi line mein user ke diye gaye saare keywords hain
-                    if all(term in line_lower for term in query_terms):
+                    if any(term in line_lower for term in query_terms):
                         matched_results.append({
                             'date_time': date_time,
                             'sender': sender,
                             'matched_line': line.strip(),
-                            'full_row_text': f"{sender} {details}" # Number nikalne ke liye poora text
+                            'full_row_text': f"{sender} {details}"
                         })
             
             if not matched_results:
@@ -96,8 +117,7 @@ if st.button("🔍 Search Karein"):
                     line_text = item['matched_line']
                     full_text = item['full_row_text']
                     
-                    # WhatsApp direct link generate karna agar number ya link mil jaye
-                    wa_url = get_whatsapp_link(full_text)
+                    wa_url, wa_type = get_whatsapp_info(full_text)
                     
                     with st.container():
                         st.markdown(f"### **Record #{match_idx}**")
@@ -109,8 +129,11 @@ if st.button("🔍 Search Karein"):
                         
                         st.info(f"📌 **Detail:**\n\n{line_text}")
                         
-                        # Agar WhatsApp link mil jaye toh button show karo
+                        # Link type ke hisab se button dikhana
                         if wa_url:
-                            st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_url})", unsafe_allow_html=True)
+                            if wa_type == "Group Link":
+                                st.markdown(f"[🔗 WhatsApp Group Link Kholein]({wa_url})", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_url})", unsafe_allow_html=True)
                         
                         st.markdown("---")
