@@ -4,7 +4,7 @@ import re
 
 st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
 st.title("🏠 Bahria Town Smart Search Bot")
-st.write("Clean, fast and exact-keyword search bot.")
+st.write("Clean, fast and exact-keyword search with yellow highlighting.")
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
@@ -37,9 +37,8 @@ if df.empty:
 else:
     st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
-# Clean WhatsApp Direct Number Extractor (Only valid mobile numbers)
+# Clean WhatsApp Direct Number Extractor
 def get_clean_whatsapp(text):
-    # Pakistani phone numbers (jaise 03001234567 ya +923001234567)
     phone_pattern = r'(?:\+92|0)?(3[0-9]{9})'
     match = re.search(phone_pattern, text)
     if match:
@@ -57,7 +56,6 @@ if st.button("🔍 Search Karein"):
         st.warning("⚠️ Data available nahi hai.")
     else:
         with st.spinner("Talaash ki ja rahi hai..."):
-            # Bilkul exact keywords jo user ne likhe hon (No automatic wrong alterations)
             query_terms = [term.lower() for term in user_query.split()]
             
             matched_results = []
@@ -68,26 +66,37 @@ if st.button("🔍 Search Karein"):
                 details = str(row.get('Message Details', row.to_dict()))
                 
                 lines = details.split('\n')
+                has_match = False
+                formatted_lines = []
                 
                 for line in lines:
                     line_lower = line.lower()
-                    # Check karein ke user ke diye gaye saare keywords is line mein mojood hon
+                    # Check karein ke kya is line mein keywords hain
                     if all(term in line_lower for term in query_terms):
-                        matched_results.append({
-                            'date_time': date_time,
-                            'sender': sender,
-                            'matched_line': line.strip(),
-                            'full_text': f"{sender} {details}"
-                        })
+                        has_match = True
+                        # Matching line ko yellow highlight karna (<mark> tag ke zariye)
+                        highlighted_line = f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>"
+                        formatted_lines.append(highlighted_line)
+                    else:
+                        formatted_lines.append(line.strip())
+                
+                # Agar row mein match mil jaye, toh poora message save kar lo
+                if has_match:
+                    full_message_html = "<br>".join(formatted_lines)
+                    matched_results.append({
+                        'date_time': date_time,
+                        'sender': sender,
+                        'full_message': full_message_html,
+                        'full_text': f"{sender} {details}"
+                    })
             
             if not matched_results:
-                st.warning("❌ Aapke keywords wali koi exact line nahi mili.")
+                st.warning("❌ Aapke keywords wala koi record nahi mila.")
             else:
                 st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain:")
                 st.markdown("---")
                 
                 for match_idx, item in enumerate(matched_results[:50], 1):
-                    line_text = item['matched_line']
                     wa_link = get_clean_whatsapp(item['full_text'])
                     
                     with st.container():
@@ -98,9 +107,10 @@ if st.button("🔍 Search Karein"):
                         with col2:
                             st.markdown(f"👤 **Source:** {item['sender']}")
                         
-                        st.info(f"📌 **Detail:**\n\n{line_text}")
+                        # Poora message dikhana aur matching hissay ko yellow highlight karna
+                        st.markdown(f"📌 **Poori Detail:**\n\n{item['full_message']}", unsafe_allow_html=True)
                         
-                        # Agar saaf suthra phone number mila toh button do, warna nahi
+                        # WhatsApp Direct Chat Button
                         if wa_link:
                             st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_link})", unsafe_allow_html=True)
                         
