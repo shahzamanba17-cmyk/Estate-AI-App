@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 
-st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide") # Layout wide kar diya taake 2 columns achay lagin
+st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide") 
 
 st.title("Deal")
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
@@ -184,11 +184,9 @@ with tab2:
             with st.spinner("Deals match ki ja rahi hain..."):
                 search_patterns = get_search_patterns(match_query)
                 
-                # Do alag lists banayenge (Required aur Available ke liye)
                 required_deals = []
                 available_deals = []
                 
-                # Required words list (agar in mein se koi word aaye toh wo demand/required mani jayegi)
                 required_keywords = r'\b(need|require|required|chahiye|chahye|looking|buyer|client)\b'
                 
                 for idx, row in df.iterrows():
@@ -202,6 +200,9 @@ with tab2:
                     header_chunk = paragraphs[0]
                     header_lower = header_chunk.lower()
                     
+                    matched_chunks_data = []
+                    formatted_full_message_paragraphs = []
+                    
                     for i, para in enumerate(paragraphs):
                         para_lower = para.lower()
                         chunk_match = True
@@ -212,7 +213,6 @@ with tab2:
                                 break
                         
                         if chunk_match and search_patterns:
-                            # Highlight the keywords
                             lines = para.split('\n')
                             hl_lines = []
                             for line in lines:
@@ -222,21 +222,35 @@ with tab2:
                                     hl_lines.append(line.strip())
                             
                             formatted_para = "<br>".join(hl_lines)
+                            formatted_full_message_paragraphs.append(formatted_para)
                             
-                            deal_data = {
-                                'date_time': date_time,
-                                'sender': sender,
-                                'deal_text': formatted_para,
-                                'wa_link': get_clean_whatsapp(f"{sender} {details}")
-                            }
-                            
-                            # Decide karna ke deal Required hai ya Available
                             is_required = bool(re.search(required_keywords, para_lower) or re.search(required_keywords, header_lower))
                             
-                            if is_required:
-                                required_deals.append(deal_data)
+                            matched_chunks_data.append({
+                                'deal_text': formatted_para,
+                                'is_required': is_required
+                            })
+                        else:
+                            formatted_full_message_paragraphs.append(para.replace('\n', '<br>'))
+                            
+                    # Agar is message mein koi deal match hui hai, toh list mein daalein
+                    if matched_chunks_data:
+                        # Full message ko join karein taake expander mein show ho
+                        highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
+                        wa_link = get_clean_whatsapp(f"{sender} {details}")
+                        
+                        for m_data in matched_chunks_data:
+                            deal_dict = {
+                                'date_time': date_time,
+                                'sender': sender,
+                                'deal_text': m_data['deal_text'],
+                                'wa_link': wa_link,
+                                'original_details': highlighted_original_details
+                            }
+                            if m_data['is_required']:
+                                required_deals.append(deal_dict)
                             else:
-                                available_deals.append(deal_data)
+                                available_deals.append(deal_dict)
 
                 # Screen ko 2 hisson (Columns) mein todna
                 col_avail, col_req = st.columns(2)
@@ -254,8 +268,13 @@ with tab2:
                                 {item['deal_text']}
                             </div>
                             """, unsafe_allow_html=True)
+                            
                             if item['wa_link']:
                                 st.markdown(f"[📲 WhatsApp Karein]({item['wa_link']})", unsafe_allow_html=True)
+                                
+                            with st.expander("👀 Poora Original Message Dekhein"):
+                                st.markdown(item['original_details'], unsafe_allow_html=True)
+                                
                             st.markdown("<hr>", unsafe_allow_html=True)
 
                 # COLUMN 2: REQUIRED
@@ -271,6 +290,11 @@ with tab2:
                                 {item['deal_text']}
                             </div>
                             """, unsafe_allow_html=True)
+                            
                             if item['wa_link']:
                                 st.markdown(f"[📲 WhatsApp Karein]({item['wa_link']})", unsafe_allow_html=True)
+                                
+                            with st.expander("👀 Poora Original Message Dekhein"):
+                                st.markdown(item['original_details'], unsafe_allow_html=True)
+                                
                             st.markdown("<hr>", unsafe_allow_html=True)
