@@ -4,7 +4,7 @@ import re
 
 st.set_page_config(page_title="Bahria Town Smart Search", page_icon="🏠", layout="centered")
 st.title("🏠 Bahria Town Smart Search Bot")
-st.write("Smart Python Search with Auto-Synonym & WhatsApp Direct Links.")
+st.write("Clean, fast and exact-keyword search bot.")
 
 # Aapki Asli / Original Google Sheet ki ID
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
@@ -37,47 +37,18 @@ if df.empty:
 else:
     st.success(f"✅ Total {len(df)} records load ho gaye hain (Naye se Purane ki tarah sorted).")
 
-# Smart Synonym Extractor
-def expand_query_terms(query):
-    terms = query.lower().split()
-    expanded = set(terms)
-    
-    for term in terms:
-        if term in ['block', 'bloc', 'blk']:
-            expanded.update(['block', 'bloc', 'blk'])
-        elif term in ['precinct', 'p', 'prec']:
-            expanded.update(['precinct', 'p', 'prec', 'p-'])
-        elif term in ['rent', 'rental']:
-            expanded.update(['rent', 'rental'])
-        elif term in ['sale', 'selling']:
-            expanded.update(['sale', 'selling', 'for sale'])
-        elif term in ['corner', 'c/nr']:
-            expanded.update(['corner', 'c/nr'])
-            
-    return list(expanded)
-
-# Helper function to get clean WhatsApp Direct Chat or Group Link
-def get_whatsapp_info(text):
-    # Pehle check karein agar text mein koi direct WhatsApp group link (`chat.whatsapp.com`) mojood hai
-    group_link_match = re.search(r'https?://chat\.whatsapp\.com/[A-Za-z0-9]+', text)
-    if group_link_match:
-        return group_link_match.group(0), "Group Link"
-    
-    # Agar group link na ho, toh personal phone number dhoond kar direct chat link banayein
-    phone_pattern = r'(?:\+92|0)?3[0-9]{9}'
+# Clean WhatsApp Direct Number Extractor (Only valid mobile numbers)
+def get_clean_whatsapp(text):
+    # Pakistani phone numbers (jaise 03001234567 ya +923001234567)
+    phone_pattern = r'(?:\+92|0)?(3[0-9]{9})'
     match = re.search(phone_pattern, text)
     if match:
-        num = match.group(0)
-        if num.startswith('0'):
-            num = '92' + num[1:]
-        elif not num.startswith('92'):
-            num = '92' + num
-        return f"https://wa.me/{num}", "Direct Number"
-        
-    return None, None
+        num = '92' + match.group(1)
+        return f"https://wa.me/{num}"
+    return None
 
 # User Input
-user_query = st.text_input("Yahan apna keyword likhein (Jaise: Ali block rent, P12 corner):")
+user_query = st.text_input("Yahan apna exact keyword likhein (Jaise: Ali block rent):")
 
 if st.button("🔍 Search Karein"):
     if not user_query.strip():
@@ -85,8 +56,9 @@ if st.button("🔍 Search Karein"):
     elif df.empty:
         st.warning("⚠️ Data available nahi hai.")
     else:
-        with st.spinner("Smart spelling aur variations ke sath talaash jari hai..."):
-            query_terms = expand_query_terms(user_query)
+        with st.spinner("Talaash ki ja rahi hai..."):
+            # Bilkul exact keywords jo user ne likhe hon (No automatic wrong alterations)
+            query_terms = [term.lower() for term in user_query.split()]
             
             matched_results = []
             
@@ -99,25 +71,24 @@ if st.button("🔍 Search Karein"):
                 
                 for line in lines:
                     line_lower = line.lower()
-                    if any(term in line_lower for term in query_terms):
+                    # Check karein ke user ke diye gaye saare keywords is line mein mojood hon
+                    if all(term in line_lower for term in query_terms):
                         matched_results.append({
                             'date_time': date_time,
                             'sender': sender,
                             'matched_line': line.strip(),
-                            'full_row_text': f"{sender} {details}"
+                            'full_text': f"{sender} {details}"
                         })
             
             if not matched_results:
                 st.warning("❌ Aapke keywords wali koi exact line nahi mili.")
             else:
-                st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain (Showing up to 50):")
+                st.success(f"🎉 Qamyabi! {len(matched_results)} matching records mil gaye hain:")
                 st.markdown("---")
                 
                 for match_idx, item in enumerate(matched_results[:50], 1):
                     line_text = item['matched_line']
-                    full_text = item['full_row_text']
-                    
-                    wa_url, wa_type = get_whatsapp_info(full_text)
+                    wa_link = get_clean_whatsapp(item['full_text'])
                     
                     with st.container():
                         st.markdown(f"### **Record #{match_idx}**")
@@ -129,11 +100,8 @@ if st.button("🔍 Search Karein"):
                         
                         st.info(f"📌 **Detail:**\n\n{line_text}")
                         
-                        # Link type ke hisab se button dikhana
-                        if wa_url:
-                            if wa_type == "Group Link":
-                                st.markdown(f"[🔗 WhatsApp Group Link Kholein]({wa_url})", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_url})", unsafe_allow_html=True)
+                        # Agar saaf suthra phone number mila toh button do, warna nahi
+                        if wa_link:
+                            st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({wa_link})", unsafe_allow_html=True)
                         
                         st.markdown("---")
