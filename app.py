@@ -89,7 +89,7 @@ if st.button("Dhoondo"):
                 try:
                     # Using gemini-2.0-flash which is fully compatible with google-genai client
                     response = client.models.generate_content(
-                        model='gemini-2.0-flash',
+                        model='gemini-3.8-flash',
                         contents=prompt,
                     )
                     st.success("Jawab Mil Gaya!")
