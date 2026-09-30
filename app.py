@@ -284,7 +284,7 @@ with tab1:
                 btn_text = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
                 st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
                 
-                for match_idx, item in enumerate(matched_results[:50], 1):
+                for match_idx, item in enumerate(matched_results[:150], 1):
                     render_deal_ui(item, f"t1_{match_idx}", match_idx)
 
 # ------------------------------------------
