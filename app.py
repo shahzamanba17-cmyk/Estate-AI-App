@@ -5,6 +5,30 @@ import hashlib
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide") 
 
+# ==========================================
+# CUSTOM CSS FOR MOBILE SCROLLBAR
+# ==========================================
+st.markdown("""
+<style>
+/* Mobile par scrollbar ko mota aur pakarne mein asan banane ke liye */
+::-webkit-scrollbar {
+    width: 16px !important; 
+    height: 16px !important;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1 !important; 
+}
+::-webkit-scrollbar-thumb {
+    background: #888 !important; 
+    border-radius: 8px !important;
+    border: 3px solid #f1f1f1 !important;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555 !important; 
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown("<h1 style='text-align: center;'>Deal</h1>", unsafe_allow_html=True)
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
@@ -123,7 +147,6 @@ def render_deal_ui(item, key_prefix, record_num=None):
         st.markdown(f"📌 **Relevant Deals:**<br>{item['deal_text']}", unsafe_allow_html=True)
         if item['wa_link']: st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({item['wa_link']})", unsafe_allow_html=True)
         
-        # Expanded parameter ko session_state ke sath attach kar diya
         with st.expander("👀 Poora Original Message Dekhein (Show Full List)", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
             
@@ -258,7 +281,6 @@ with tab1:
             else:
                 st.success(f"🎉 Qamyabi! {len(matched_results)} unique matching records mil gaye hain:")
                 
-                # Yahan Expand/Collapse button add kiya hai
                 btn_text = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
                 st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
                 
