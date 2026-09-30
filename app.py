@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 import hashlib
+import datetime
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide") 
 
@@ -85,6 +86,25 @@ if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
 else:
     st.markdown(f"🟢 **Total Records: {len(df)}**")
+    st.markdown("---")
+    
+    # --- Date Range Filter ---
+    st.markdown("### 📅 Date Filter")
+    col_d1, col_d2 = st.columns(2)
+    
+    # Get min and max dates from data
+    min_date = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else datetime.date.today() - datetime.timedelta(days=30)
+    max_date = df['Parsed_Date'].max().date() if pd.notnull(df['Parsed_Date'].max()) else datetime.date.today()
+    
+    with col_d1:
+        start_date = st.date_input("Start Date", min_date)
+    with col_d2:
+        end_date = st.date_input("End Date", max_date)
+        
+    # Filter the dataframe
+    mask = (df['Parsed_Date'].dt.date >= start_date) & (df['Parsed_Date'].dt.date <= end_date)
+    df = df.loc[mask]
+    st.markdown(f"**Filtered Records (Is Date Range ke):** {len(df)}")
     st.markdown("---")
 
 # Precise & Smart Keyword Pattern Generator
@@ -182,9 +202,9 @@ def generate_id(date_time, sender, text):
     return hashlib.md5(unique_string.encode()).hexdigest()
 
 # ==========================================
-# TABS BANANA
+# TABS BANANA (Yahan 5 tabs ho gaye hain)
 # ==========================================
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📘 ShahJhan's Bookmarks", "📗 Touqeer's Bookmarks"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📘 ShahJhan's", "📗 Touqeer's", "📊 Analytics"])
 
 # ------------------------------------------
 # TAB 1: PEHLE WALA NORMAL SMART SEARCH
@@ -424,3 +444,32 @@ with tab4:
         
         for i, item in enumerate(reversed(list(st.session_state.touqeer_bm.values()))):
             render_deal_ui(item, f"bm_tq_{i}", i + 1)
+
+# ------------------------------------------
+# TAB 5: ANALYTICS DASHBOARD
+# ------------------------------------------
+with tab5:
+    st.markdown("### 📊 Market Trends (Precincts)")
+    
+    if not df.empty:
+        # Regex se sirf Precinct numbers nikalna (e.g., p15, precinct 10)
+        precinct_pattern = r'(?i)\b(?:p-?|precinct\s*)(\d+)\b'
+        
+        # Har message mein se precinct find karna
+        extracted = df['Message Details'].astype(str).str.extractall(precinct_pattern)[0]
+        
+        if not extracted.empty:
+            # Count karna ke kon sa precinct kitni baar aya
+            p_counts = extracted.value_counts().reset_index()
+            p_counts.columns = ['Precinct', 'Mentions']
+            p_counts['Precinct'] = 'P-' + p_counts['Precinct'].astype(str)
+            
+            # Top 15 Precincts ka chart
+            top_precincts = p_counts.head(15).set_index('Precinct')
+            
+            st.markdown("**Top 15 Most Active Precincts (Barchart)**")
+            st.bar_chart(top_precincts)
+        else:
+            st.info("No precinct data found in current date range.")
+    else:
+        st.warning("Data available nahi hai.")
