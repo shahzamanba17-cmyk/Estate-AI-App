@@ -52,7 +52,6 @@ if 'search_active2' not in st.session_state:
 if 'last_query2' not in st.session_state:
     st.session_state.last_query2 = ""
 
-# Expand All Button ki memory aur function
 if 'show_all_expanders' not in st.session_state:
     st.session_state.show_all_expanders = False
 
@@ -85,26 +84,52 @@ with col_btn:
 if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
 else:
-    st.markdown(f"🟢 **Total Records: {len(df)}**")
+    st.markdown(f"🟢 **Total Records (Sheet mein): {len(df)}**")
     st.markdown("---")
     
-    # --- Date Range Filter ---
+    # ==========================================
+    # DATE RANGE FILTER WITH QUICK TABS
+    # ==========================================
     st.markdown("### 📅 Date Filter")
-    col_d1, col_d2 = st.columns(2)
     
-    # Get min and max dates from data
-    min_date = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else datetime.date.today() - datetime.timedelta(days=30)
-    max_date = df['Parsed_Date'].max().date() if pd.notnull(df['Parsed_Date'].max()) else datetime.date.today()
+    quick_days = st.radio(
+        "Quick Select:", 
+        ["1D", "2D", "3D", "4D", "5D", "6D", "7D", "All Time", "Custom Range"], 
+        horizontal=True
+    )
     
-    with col_d1:
-        start_date = st.date_input("Start Date", min_date)
-    with col_d2:
-        end_date = st.date_input("End Date", max_date)
-        
-    # Filter the dataframe
+    today = datetime.date.today()
+    
+    if quick_days == "1D":
+        start_date, end_date = today, today
+    elif quick_days == "2D":
+        start_date, end_date = today - datetime.timedelta(days=1), today
+    elif quick_days == "3D":
+        start_date, end_date = today - datetime.timedelta(days=2), today
+    elif quick_days == "4D":
+        start_date, end_date = today - datetime.timedelta(days=3), today
+    elif quick_days == "5D":
+        start_date, end_date = today - datetime.timedelta(days=4), today
+    elif quick_days == "6D":
+        start_date, end_date = today - datetime.timedelta(days=5), today
+    elif quick_days == "7D":
+        start_date, end_date = today - datetime.timedelta(days=6), today
+    elif quick_days == "All Time":
+        start_date = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today
+        end_date = today
+    else: # Custom Range
+        col_d1, col_d2 = st.columns(2)
+        min_d = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today - datetime.timedelta(days=30)
+        with col_d1:
+            start_date = st.date_input("Start Date", min_d)
+        with col_d2:
+            end_date = st.date_input("End Date", today)
+            
+    # Filter DataFrame based on dates
     mask = (df['Parsed_Date'].dt.date >= start_date) & (df['Parsed_Date'].dt.date <= end_date)
     df = df.loc[mask]
-    st.markdown(f"**Filtered Records (Is Date Range ke):** {len(df)}")
+    
+    st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
     st.markdown("---")
 
 # Precise & Smart Keyword Pattern Generator
@@ -202,7 +227,7 @@ def generate_id(date_time, sender, text):
     return hashlib.md5(unique_string.encode()).hexdigest()
 
 # ==========================================
-# TABS BANANA (Yahan 5 tabs ho gaye hain)
+# TABS BANANA
 # ==========================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📘 ShahJhan's", "📗 Touqeer's", "📊 Analytics"])
 
