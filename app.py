@@ -11,6 +11,7 @@ st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide")
 # ==========================================
 st.markdown("""
 <style>
+/* Mobile par scrollbar ko mota aur pakarne mein asan banane ke liye */
 ::-webkit-scrollbar {
     width: 16px !important; 
     height: 16px !important;
@@ -46,6 +47,7 @@ if 'search_active2' not in st.session_state:
     st.session_state.search_active2 = False
 if 'last_query2' not in st.session_state:
     st.session_state.last_query2 = ""
+
 if 'show_all_expanders' not in st.session_state:
     st.session_state.show_all_expanders = False
 
@@ -94,60 +96,43 @@ else:
     
     today = datetime.date.today()
     
-    if quick_days == "1D": start_date, end_date = today, today
-    elif quick_days == "2D": start_date, end_date = today - datetime.timedelta(days=1), today
-    elif quick_days == "3D": start_date, end_date = today - datetime.timedelta(days=2), today
-    elif quick_days == "4D": start_date, end_date = today - datetime.timedelta(days=3), today
-    elif quick_days == "5D": start_date, end_date = today - datetime.timedelta(days=4), today
-    elif quick_days == "6D": start_date, end_date = today - datetime.timedelta(days=5), today
-    elif quick_days == "7D": start_date, end_date = today - datetime.timedelta(days=6), today
-    elif quick_days == "2W": start_date, end_date = today - datetime.timedelta(days=14), today
-    elif quick_days == "3W": start_date, end_date = today - datetime.timedelta(days=21), today
-    elif quick_days == "1M": start_date, end_date = today - datetime.timedelta(days=30), today
+    if quick_days == "1D":
+        start_date, end_date = today, today
+    elif quick_days == "2D":
+        start_date, end_date = today - datetime.timedelta(days=1), today
+    elif quick_days == "3D":
+        start_date, end_date = today - datetime.timedelta(days=2), today
+    elif quick_days == "4D":
+        start_date, end_date = today - datetime.timedelta(days=3), today
+    elif quick_days == "5D":
+        start_date, end_date = today - datetime.timedelta(days=4), today
+    elif quick_days == "6D":
+        start_date, end_date = today - datetime.timedelta(days=5), today
+    elif quick_days == "7D":
+        start_date, end_date = today - datetime.timedelta(days=6), today
+    elif quick_days == "2W":
+        start_date, end_date = today - datetime.timedelta(days=14), today
+    elif quick_days == "3W":
+        start_date, end_date = today - datetime.timedelta(days=21), today
+    elif quick_days == "1M":
+        start_date, end_date = today - datetime.timedelta(days=30), today
     elif quick_days == "All Time":
         start_date = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today
         end_date = today
-    else: 
+    else: # Custom Range
         col_d1, col_d2 = st.columns(2)
         min_d = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today - datetime.timedelta(days=30)
-        with col_d1: start_date = st.date_input("Start Date", min_d)
-        with col_d2: end_date = st.date_input("End Date", today)
+        with col_d1:
+            start_date = st.date_input("Start Date", min_d)
+        with col_d2:
+            end_date = st.date_input("End Date", today)
             
+    # Filter DataFrame based on dates
     mask = (df['Parsed_Date'].dt.date >= start_date) & (df['Parsed_Date'].dt.date <= end_date)
     df = df.loc[mask]
     
     st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
     st.markdown("---")
-
-# ==========================================
-# SMART PRICE EXTRACTOR (NEW)
-# ==========================================
-def extract_price(text):
-    t = str(text).lower()
-    # Remove commas from thousands (45,000 -> 45000)
-    t = re.sub(r'(\d),(\d)', r'\1\2', t)
-    
-    # Pattern to find @240, Demand 18lac, Rent 70k, etc.
-    pattern = r'(?:@|demand\s*|rent\s*@?\s*)(\d+(?:\.\d+)?)\s*(lac|lakh|cr|crore|k)?\b|\b(\d+(?:\.\d+)?)\s*(lac|lakh|cr|crore|k)\b'
-    matches = re.findall(pattern, t)
-    
-    prices = []
-    for match in matches:
-        val_str = match[0] if match[0] else match[2]
-        unit = match[1] if match[1] else match[3]
-        
-        if val_str:
-            try:
-                val = float(val_str)
-                if unit in ['cr', 'crore']: val *= 100
-                elif unit == 'k': val /= 100
-                elif val > 10000: val /= 100000
-                prices.append(val)
-            except:
-                pass
-                
-    # Return the lowest price found in the message, or infinity if no price
-    return min(prices) if prices else float('inf')
 
 # Precise & Smart Keyword Pattern Generator
 def get_search_patterns(query):
@@ -176,9 +161,9 @@ def get_clean_whatsapp(text):
     return None
 
 # ==========================================
-# REUSABLE UI LOGIC
+# REUSABLE UI LOGIC (Bookmarks Removed)
 # ==========================================
-def render_deal_ui(item, record_num=None, show_price=False):
+def render_deal_ui(item, record_num=None):
     if item['source_tab'] == 'tab1':
         title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
         st.markdown(
@@ -189,11 +174,6 @@ def render_deal_ui(item, record_num=None, show_price=False):
         c1, c2 = st.columns(2)
         with c1: st.markdown(f"🕒 **Waqt:** {item['date_time']}")
         with c2: st.markdown(f"👤 **Source:** {item['sender']}")
-        
-        # Agar price sorting on ho aur price mili ho toh screen par bhi dikhaye
-        if show_price and item.get('price_val') != float('inf'):
-            st.markdown(f"🏷️ **Estimated Price:** ~ {item['price_val']} Lacs")
-            
         st.markdown(f"📌 **Relevant Deals:**<br>{item['deal_text']}", unsafe_allow_html=True)
         if item['wa_link']: st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({item['wa_link']})", unsafe_allow_html=True)
         
@@ -223,12 +203,16 @@ def render_deal_ui(item, record_num=None, show_price=False):
         
         with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
+
     st.markdown("<hr>", unsafe_allow_html=True)
 
 def generate_id(date_time, sender, text):
     unique_string = f"{date_time}_{sender}_{text}"
     return hashlib.md5(unique_string.encode()).hexdigest()
 
+# ==========================================
+# TABS BANANA (3 TABS: Search, Matcher, Analytics)
+# ==========================================
 tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Analytics Dashboard"])
 
 # ------------------------------------------
@@ -237,10 +221,7 @@ tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Anal
 with tab1:
     st.markdown("### 🔍 General Search")
     user_query = st.text_input("Search:", placeholder="Ali block rent ya p3", key="search_input_tab1")
-    
-    # NEW CHECKBOX FOR PRICE SORTING
-    sort_by_price = st.checkbox("💰 Sasti Deals Pehle Dikhayein (Sort Low to High Price)", key="sort_price_tab1")
-    
+
     if st.button("🔍 Search Karein", key="btn_tab1"):
         st.session_state.search_active1 = True
         st.session_state.last_query1 = user_query
@@ -295,13 +276,13 @@ with tab1:
                         formatted_full_message_paragraphs.append(formatted_para)
                     else:
                         formatted_full_message_paragraphs.append(para.replace('\n', '<br>'))
-                
+
                 if matched_chunks:
                     matched_html = "<br><br>".join(matched_chunks)
                     if not any("[Top Heading" in chunk for chunk in matched_chunks):
                         header_html = f"<div style='color: gray; font-size: 0.9em;'><i>Context (Shuru Ki Line):<br>{header_chunk.replace(chr(10), '<br>')}</i></div><br>"
                         matched_html = header_html + matched_html
-                    
+
                     highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
                     wa_link = get_clean_whatsapp(f"{sender} {details}")
                     
@@ -313,7 +294,6 @@ with tab1:
                     seen_signatures.add(signature)
                     
                     item_id = generate_id(date_time, sender, matched_html)
-                    extracted_price = extract_price(matched_html)
                     
                     matched_results.append({
                         'id': item_id,
@@ -322,14 +302,9 @@ with tab1:
                         'deal_text': matched_html,
                         'wa_link': wa_link,
                         'original_details': highlighted_original_details,
-                        'source_tab': 'tab1',
-                        'price_val': extracted_price
+                        'source_tab': 'tab1'
                     })
             
-            # Agar Price filter On hai tou Sasti Deals uper kar dein
-            if matched_results and sort_by_price:
-                matched_results = sorted(matched_results, key=lambda x: x['price_val'])
-
             if not matched_results:
                 st.warning("❌ Aapke keywords wala koi record nahi mila.")
             else:
@@ -339,21 +314,22 @@ with tab1:
                 st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
                 
                 for match_idx, item in enumerate(matched_results[:150], 1):
-                    render_deal_ui(item, match_idx, show_price=sort_by_price)
+                    render_deal_ui(item, match_idx)
 
 # ------------------------------------------
-# TAB 2 & TAB 3 REMAIN SAME AS YOUR ORIGINAL CODE
-# ------------------------------------------
 # TAB 2: DEAL MATCHER (Required vs Available)
+# ------------------------------------------
 with tab2:
     st.markdown("### 🤝 Aamne-Samne Matcher (Demand vs Supply)")
     match_query = st.text_input("Property to Match:", placeholder="e.g., Ali block villa", key="search_input_tab2")
+
     if st.button("🤝 Match Deals", key="btn_tab2"):
         st.session_state.search_active2 = True
         st.session_state.last_query2 = match_query
     elif match_query != st.session_state.last_query2:
         st.session_state.search_active2 = False
         st.session_state.last_query2 = match_query
+
     if st.session_state.search_active2 and match_query.strip() and not df.empty:
         with st.spinner("Deals match ki ja rahi hain..."):
             search_patterns = get_search_patterns(match_query)
@@ -429,9 +405,11 @@ with tab2:
                         }
                         if m_data['is_required']: required_deals.append(deal_dict)
                         else: available_deals.append(deal_dict)
+
             if available_deals or required_deals:
                 btn_text2 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
                 st.button(btn_text2, on_click=toggle_expanders, key="btn_exp_t2")
+
             col_avail, col_req = st.columns(2)
             
             with col_avail:
@@ -440,6 +418,7 @@ with tab2:
                 else:
                     for i, item in enumerate(available_deals[:25]):
                         render_deal_ui(item)
+
             with col_req:
                 st.markdown("### 🔴 Required (Demand)")
                 if not required_deals: st.info("Koi 'Required' (Demand) deal nahi mili.")
@@ -447,7 +426,9 @@ with tab2:
                     for i, item in enumerate(required_deals[:25]):
                         render_deal_ui(item)
 
-# TAB 3: ANALYTICS DASHBOARD
+# ------------------------------------------
+# TAB 3: ANALYTICS DASHBOARD (New Deep Analytics)
+# ------------------------------------------
 with tab3:
     st.markdown("### 📊 Market Analytics Dashboard")
     
@@ -459,6 +440,7 @@ with tab3:
         col_c1, col_c2 = st.columns(2)
         
         with col_c1:
+            # 1. Top Precincts
             st.markdown("#### 🏙️ Top 15 Active Precincts")
             precinct_pattern = r'(?i)\b(?:p-?|precinct\s*)(\d+)\b'
             extracted_p = df['Message Details'].astype(str).str.extractall(precinct_pattern)[0]
@@ -468,6 +450,7 @@ with tab3:
                 p_counts['Precinct'] = 'P-' + p_counts['Precinct'].astype(str)
                 st.bar_chart(p_counts.head(15).set_index('Precinct'))
             
+            # 2. Property Type Analysis
             st.markdown("#### 🏠 Property Type Analysis")
             def get_prop_type(text):
                 t = str(text).lower()
@@ -481,6 +464,7 @@ with tab3:
             all_types = df['Message Details'].apply(get_prop_type).explode()
             st.bar_chart(all_types.value_counts())
             
+            # 3. Demand vs Supply
             st.markdown("#### ⚖️ Demand vs Supply")
             req_keywords = r'\b(need|require|required|chahiye|chahye|looking|buyer|client)\b'
             def get_demand_supply(text):
@@ -490,8 +474,9 @@ with tab3:
             
             ds_counts = df['Message Details'].apply(get_demand_supply).value_counts()
             st.bar_chart(ds_counts)
-            
+
         with col_c2:
+            # 4. Top Property Sizes
             st.markdown("#### 📐 Top Property Sizes")
             size_pattern = r'(?i)(\d{2,4})\s*(?:gaz|sq\s*yard|sqyd|sq\s*yds|yards|yard|sqft|sq\s*ft)'
             extracted_sizes = df['Message Details'].astype(str).str.extractall(size_pattern)[0]
@@ -503,6 +488,7 @@ with tab3:
             else:
                 st.info("Size data available nahi hai.")
                 
+            # 5. Top Prime Features
             st.markdown("#### ⭐ Top Prime Features")
             def get_features(text):
                 t = str(text).lower()
@@ -520,6 +506,7 @@ with tab3:
             else:
                 st.info("No prime features found.")
                 
+            # 6. Construction Status
             st.markdown("#### 🏗️ Construction Status")
             def get_status(text):
                 t = str(text).lower()
@@ -534,5 +521,6 @@ with tab3:
                 st.bar_chart(all_status.value_counts())
             else:
                 st.info("No status keywords found.")
+                
     else:
         st.warning("Data available nahi hai.")
