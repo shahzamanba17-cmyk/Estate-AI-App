@@ -37,12 +37,8 @@ st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_htm
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
 
 # ==========================================
-# MEMORY SYSTEM (Bookmarks & Search State)
+# MEMORY SYSTEM (Search State)
 # ==========================================
-if 'shahjhan_bm' not in st.session_state:
-    st.session_state.shahjhan_bm = {}
-if 'touqeer_bm' not in st.session_state:
-    st.session_state.touqeer_bm = {}
 if 'search_active1' not in st.session_state:
     st.session_state.search_active1 = False
 if 'last_query1' not in st.session_state:
@@ -84,7 +80,7 @@ with col_btn:
 if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
 else:
-    st.markdown(f"🟢 **Total Records (Sheet mein): {len(df)}**")
+    st.markdown(f"🟢 **Total Records: {len(df)}**")
     st.markdown("---")
     
     # ==========================================
@@ -94,7 +90,7 @@ else:
     
     quick_days = st.radio(
         "Quick Select:", 
-        ["1D", "2D", "3D", "4D", "5D", "6D", "7D", "All Time", "Custom Range"], 
+        ["1D", "2D", "3D", "4D", "5D", "6D", "7D", "2W", "3W", "1M", "All Time", "Custom Range"], 
         horizontal=True
     )
     
@@ -114,6 +110,12 @@ else:
         start_date, end_date = today - datetime.timedelta(days=5), today
     elif quick_days == "7D":
         start_date, end_date = today - datetime.timedelta(days=6), today
+    elif quick_days == "2W":
+        start_date, end_date = today - datetime.timedelta(days=14), today
+    elif quick_days == "3W":
+        start_date, end_date = today - datetime.timedelta(days=21), today
+    elif quick_days == "1M":
+        start_date, end_date = today - datetime.timedelta(days=30), today
     elif quick_days == "All Time":
         start_date = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today
         end_date = today
@@ -159,26 +161,9 @@ def get_clean_whatsapp(text):
     return None
 
 # ==========================================
-# REUSABLE UI & BOOKMARK LOGIC
+# REUSABLE UI LOGIC (Bookmarks Removed)
 # ==========================================
-def render_bookmark_buttons(item_dict, unique_key_prefix):
-    uid = item_dict['id']
-    is_sj = uid in st.session_state.shahjhan_bm
-    is_tq = uid in st.session_state.touqeer_bm
-    
-    c1, c2, c3 = st.columns([1, 1, 2])
-    with c1:
-        if st.button("❌ Remove ShahJhan" if is_sj else "🔖 Save ShahJhan", key=f"sj_{unique_key_prefix}_{uid}"):
-            if is_sj: del st.session_state.shahjhan_bm[uid]
-            else: st.session_state.shahjhan_bm[uid] = item_dict
-            st.rerun()
-    with c2:
-        if st.button("❌ Remove Touqeer" if is_tq else "🔖 Save Touqeer", key=f"tq_{unique_key_prefix}_{uid}"):
-            if is_tq: del st.session_state.touqeer_bm[uid]
-            else: st.session_state.touqeer_bm[uid] = item_dict
-            st.rerun()
-
-def render_deal_ui(item, key_prefix, record_num=None):
+def render_deal_ui(item, record_num=None):
     if item['source_tab'] == 'tab1':
         title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
         st.markdown(
@@ -219,7 +204,6 @@ def render_deal_ui(item, key_prefix, record_num=None):
         with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
 
-    render_bookmark_buttons(item, key_prefix)
     st.markdown("<hr>", unsafe_allow_html=True)
 
 def generate_id(date_time, sender, text):
@@ -227,12 +211,12 @@ def generate_id(date_time, sender, text):
     return hashlib.md5(unique_string.encode()).hexdigest()
 
 # ==========================================
-# TABS BANANA
+# TABS BANANA (3 TABS: Search, Matcher, Analytics)
 # ==========================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📘 ShahJhan's", "📗 Touqeer's", "📊 Analytics"])
+tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Analytics Dashboard"])
 
 # ------------------------------------------
-# TAB 1: PEHLE WALA NORMAL SMART SEARCH
+# TAB 1: SMART SEARCH
 # ------------------------------------------
 with tab1:
     st.markdown("### 🔍 General Search")
@@ -330,7 +314,7 @@ with tab1:
                 st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
                 
                 for match_idx, item in enumerate(matched_results[:150], 1):
-                    render_deal_ui(item, f"t1_{match_idx}", match_idx)
+                    render_deal_ui(item, match_idx)
 
 # ------------------------------------------
 # TAB 2: DEAL MATCHER (Required vs Available)
@@ -433,68 +417,110 @@ with tab2:
                 if not available_deals: st.info("Koi 'Available' deal nahi mili.")
                 else:
                     for i, item in enumerate(available_deals[:25]):
-                        render_deal_ui(item, f"t2a_{i}")
+                        render_deal_ui(item)
 
             with col_req:
                 st.markdown("### 🔴 Required (Demand)")
                 if not required_deals: st.info("Koi 'Required' (Demand) deal nahi mili.")
                 else:
                     for i, item in enumerate(required_deals[:25]):
-                        render_deal_ui(item, f"t2r_{i}")
+                        render_deal_ui(item)
 
 # ------------------------------------------
-# TAB 3: SHAHJHAN'S BOOKMARKS
+# TAB 3: ANALYTICS DASHBOARD (New Deep Analytics)
 # ------------------------------------------
 with tab3:
-    st.markdown("### 📘 ShahJhan's Bookmarks")
-    if not st.session_state.shahjhan_bm:
-        st.info("Abhi tak aapne koi deal bookmark nahi ki.")
-    else:
-        btn_text3 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
-        st.button(btn_text3, on_click=toggle_expanders, key="btn_exp_t3")
-        
-        for i, item in enumerate(reversed(list(st.session_state.shahjhan_bm.values()))):
-            render_deal_ui(item, f"bm_sj_{i}", i + 1)
-
-# ------------------------------------------
-# TAB 4: TOUQEER'S BOOKMARKS
-# ------------------------------------------
-with tab4:
-    st.markdown("### 📗 Touqeer's Bookmarks")
-    if not st.session_state.touqeer_bm:
-        st.info("Abhi tak aapne koi deal bookmark nahi ki.")
-    else:
-        btn_text4 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
-        st.button(btn_text4, on_click=toggle_expanders, key="btn_exp_t4")
-        
-        for i, item in enumerate(reversed(list(st.session_state.touqeer_bm.values()))):
-            render_deal_ui(item, f"bm_tq_{i}", i + 1)
-
-# ------------------------------------------
-# TAB 5: ANALYTICS DASHBOARD
-# ------------------------------------------
-with tab5:
-    st.markdown("### 📊 Market Trends (Precincts)")
+    st.markdown("### 📊 Market Analytics Dashboard")
     
     if not df.empty:
-        # Regex se sirf Precinct numbers nikalna (e.g., p15, precinct 10)
-        precinct_pattern = r'(?i)\b(?:p-?|precinct\s*)(\d+)\b'
+        st.markdown("#### 📈 Daily Market Activity")
+        daily_counts = df.groupby(df['Parsed_Date'].dt.date).size()
+        st.line_chart(daily_counts)
         
-        # Har message mein se precinct find karna
-        extracted = df['Message Details'].astype(str).str.extractall(precinct_pattern)[0]
+        col_c1, col_c2 = st.columns(2)
         
-        if not extracted.empty:
-            # Count karna ke kon sa precinct kitni baar aya
-            p_counts = extracted.value_counts().reset_index()
-            p_counts.columns = ['Precinct', 'Mentions']
-            p_counts['Precinct'] = 'P-' + p_counts['Precinct'].astype(str)
+        with col_c1:
+            # 1. Top Precincts
+            st.markdown("#### 🏙️ Top 15 Active Precincts")
+            precinct_pattern = r'(?i)\b(?:p-?|precinct\s*)(\d+)\b'
+            extracted_p = df['Message Details'].astype(str).str.extractall(precinct_pattern)[0]
+            if not extracted_p.empty:
+                p_counts = extracted_p.value_counts().reset_index()
+                p_counts.columns = ['Precinct', 'Mentions']
+                p_counts['Precinct'] = 'P-' + p_counts['Precinct'].astype(str)
+                st.bar_chart(p_counts.head(15).set_index('Precinct'))
             
-            # Top 15 Precincts ka chart
-            top_precincts = p_counts.head(15).set_index('Precinct')
+            # 2. Property Type Analysis
+            st.markdown("#### 🏠 Property Type Analysis")
+            def get_prop_type(text):
+                t = str(text).lower()
+                types = []
+                if re.search(r'\b(plot|files?)\b', t): types.append('Plot')
+                if re.search(r'\b(villa|home|house)\b', t): types.append('Villa')
+                if re.search(r'\b(apartment|flat|tower)\b', t): types.append('Apartment')
+                if re.search(r'\b(commercial|shop|office)\b', t): types.append('Commercial')
+                return types if types else ['Other']
             
-            st.markdown("**Top 15 Most Active Precincts (Barchart)**")
-            st.bar_chart(top_precincts)
-        else:
-            st.info("No precinct data found in current date range.")
+            all_types = df['Message Details'].apply(get_prop_type).explode()
+            st.bar_chart(all_types.value_counts())
+            
+            # 3. Demand vs Supply
+            st.markdown("#### ⚖️ Demand vs Supply")
+            req_keywords = r'\b(need|require|required|chahiye|chahye|looking|buyer|client)\b'
+            def get_demand_supply(text):
+                if re.search(req_keywords, str(text).lower()): 
+                    return 'Required (Demand)'
+                return 'Available (Supply)'
+            
+            ds_counts = df['Message Details'].apply(get_demand_supply).value_counts()
+            st.bar_chart(ds_counts)
+
+        with col_c2:
+            # 4. Top Property Sizes
+            st.markdown("#### 📐 Top Property Sizes")
+            size_pattern = r'(?i)(\d{2,4})\s*(?:gaz|sq\s*yard|sqyd|sq\s*yds|yards|yard|sqft|sq\s*ft)'
+            extracted_sizes = df['Message Details'].astype(str).str.extractall(size_pattern)[0]
+            if not extracted_sizes.empty:
+                s_counts = extracted_sizes.value_counts().reset_index()
+                s_counts.columns = ['Size', 'Count']
+                s_counts['Size'] = s_counts['Size'].astype(str) + ' Gaz/SqYd'
+                st.bar_chart(s_counts.head(10).set_index('Size'))
+            else:
+                st.info("Size data available nahi hai.")
+                
+            # 5. Top Prime Features
+            st.markdown("#### ⭐ Top Prime Features")
+            def get_features(text):
+                t = str(text).lower()
+                feats = []
+                if re.search(r'\b(west\s*open)\b', t): feats.append('West Open')
+                if re.search(r'\b(park\s*face|park\s*facing)\b', t): feats.append('Park Face')
+                if re.search(r'\b(corner|semi\s*corner)\b', t): feats.append('Corner')
+                if re.search(r'\b(jinnah\s*face|jinnah\s*facing|jinnah\s*back)\b', t): feats.append('Jinnah Facing')
+                if re.search(r'\b(main\s*boulevard|main\s*road)\b', t): feats.append('Main Road')
+                return feats
+            
+            all_feats = df['Message Details'].apply(get_features).explode().dropna()
+            if not all_feats.empty:
+                st.bar_chart(all_feats.value_counts())
+            else:
+                st.info("No prime features found.")
+                
+            # 6. Construction Status
+            st.markdown("#### 🏗️ Construction Status")
+            def get_status(text):
+                t = str(text).lower()
+                status = []
+                if re.search(r'\b(brand\s*new)\b', t): status.append('Brand New')
+                if re.search(r'\b(grey\s*structure|gray\s*structure)\b', t): status.append('Grey Structure')
+                if re.search(r'\b(furnished|fully\s*furnished)\b', t): status.append('Furnished')
+                return status
+            
+            all_status = df['Message Details'].apply(get_status).explode().dropna()
+            if not all_status.empty:
+                st.bar_chart(all_status.value_counts())
+            else:
+                st.info("No status keywords found.")
+                
     else:
         st.warning("Data available nahi hai.")
