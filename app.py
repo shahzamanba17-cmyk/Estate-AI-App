@@ -80,7 +80,7 @@ with col_btn:
 if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
 else:
-    st.markdown(f"🟢 ** {len(df)}**")
+    st.markdown(f"🟢 **{len(df)}**")
     st.markdown("---")
     
     # ==========================================
