@@ -27,6 +27,13 @@ if 'search_active2' not in st.session_state:
 if 'last_query2' not in st.session_state:
     st.session_state.last_query2 = ""
 
+# Expand All Button ki memory aur function
+if 'show_all_expanders' not in st.session_state:
+    st.session_state.show_all_expanders = False
+
+def toggle_expanders():
+    st.session_state.show_all_expanders = not st.session_state.show_all_expanders
+
 @st.cache_data(ttl=3600) 
 def load_data():
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
@@ -115,7 +122,9 @@ def render_deal_ui(item, key_prefix, record_num=None):
         with c2: st.markdown(f"👤 **Source:** {item['sender']}")
         st.markdown(f"📌 **Relevant Deals:**<br>{item['deal_text']}", unsafe_allow_html=True)
         if item['wa_link']: st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({item['wa_link']})", unsafe_allow_html=True)
-        with st.expander("👀 Poora Original Message Dekhein (Show Full List)"):
+        
+        # Expanded parameter ko session_state ke sath attach kar diya
+        with st.expander("👀 Poora Original Message Dekhein (Show Full List)", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
             
     elif item['source_tab'] == 'tab2_avail':
@@ -126,7 +135,8 @@ def render_deal_ui(item, key_prefix, record_num=None):
         </div>
         """, unsafe_allow_html=True)
         if item['wa_link']: st.markdown(f"[📲 WhatsApp Karein]({item['wa_link']})", unsafe_allow_html=True)
-        with st.expander("👀 Poora Original Message Dekhein"):
+        
+        with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
             
     elif item['source_tab'] == 'tab2_req':
@@ -137,7 +147,8 @@ def render_deal_ui(item, key_prefix, record_num=None):
         </div>
         """, unsafe_allow_html=True)
         if item['wa_link']: st.markdown(f"[📲 WhatsApp Karein]({item['wa_link']})", unsafe_allow_html=True)
-        with st.expander("👀 Poora Original Message Dekhein"):
+        
+        with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
 
     render_bookmark_buttons(item, key_prefix)
@@ -170,7 +181,7 @@ with tab1:
         with st.spinner("Talaash ki ja rahi hai..."):
             search_patterns = get_search_patterns(user_query)
             matched_results = []
-            seen_signatures = set() # Duplicates hatane ke liye memory set
+            seen_signatures = set()
             
             for idx, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
@@ -223,13 +234,11 @@ with tab1:
                     highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
                     wa_link = get_clean_whatsapp(f"{sender} {details}")
                     
-                    # Deduplication Signature (Sender + Exact Deal Text)
-                    # Agar same sender ne wahi text dobara bheja hai toh signature same hoga
                     clean_text_sig = re.sub(r'<[^>]*?>', '', matched_html).strip().lower()
                     signature = f"{sender}_{clean_text_sig}"
                     
                     if signature in seen_signatures:
-                        continue # Agar pehle se maujood hai toh skip kar do (Duplicate hta do)
+                        continue 
                     seen_signatures.add(signature)
                     
                     item_id = generate_id(date_time, sender, matched_html)
@@ -248,7 +257,12 @@ with tab1:
                 st.warning("❌ Aapke keywords wala koi record nahi mila.")
             else:
                 st.success(f"🎉 Qamyabi! {len(matched_results)} unique matching records mil gaye hain:")
-                for match_idx, item in enumerate(matched_results[:100], 1):
+                
+                # Yahan Expand/Collapse button add kiya hai
+                btn_text = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
+                st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
+                
+                for match_idx, item in enumerate(matched_results[:50], 1):
                     render_deal_ui(item, f"t1_{match_idx}", match_idx)
 
 # ------------------------------------------
@@ -270,7 +284,7 @@ with tab2:
             search_patterns = get_search_patterns(match_query)
             required_deals = []
             available_deals = []
-            seen_signatures_tab2 = set() # Matcher ke liye duplicate filter
+            seen_signatures_tab2 = set() 
             required_keywords = r'\b(need|require|required|chahiye|chahye|looking|buyer|client)\b'
             
             for idx, row in df.iterrows():
@@ -325,7 +339,7 @@ with tab2:
                         signature = f"{sender}_{clean_text_sig}"
                         
                         if signature in seen_signatures_tab2:
-                            continue # Duplicate skip
+                            continue 
                         seen_signatures_tab2.add(signature)
                         
                         item_id = generate_id(date_time, sender, m_data['deal_text'])
@@ -340,6 +354,10 @@ with tab2:
                         }
                         if m_data['is_required']: required_deals.append(deal_dict)
                         else: available_deals.append(deal_dict)
+
+            if available_deals or required_deals:
+                btn_text2 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
+                st.button(btn_text2, on_click=toggle_expanders, key="btn_exp_t2")
 
             col_avail, col_req = st.columns(2)
             
@@ -365,6 +383,9 @@ with tab3:
     if not st.session_state.shahjhan_bm:
         st.info("Abhi tak aapne koi deal bookmark nahi ki.")
     else:
+        btn_text3 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
+        st.button(btn_text3, on_click=toggle_expanders, key="btn_exp_t3")
+        
         for i, item in enumerate(reversed(list(st.session_state.shahjhan_bm.values()))):
             render_deal_ui(item, f"bm_sj_{i}", i + 1)
 
@@ -376,5 +397,8 @@ with tab4:
     if not st.session_state.touqeer_bm:
         st.info("Abhi tak aapne koi deal bookmark nahi ki.")
     else:
+        btn_text4 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
+        st.button(btn_text4, on_click=toggle_expanders, key="btn_exp_t4")
+        
         for i, item in enumerate(reversed(list(st.session_state.touqeer_bm.values()))):
             render_deal_ui(item, f"bm_tq_{i}", i + 1)
