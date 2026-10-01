@@ -1,4 +1,4 @@
-import streamlit as st
+
 import pandas as pd
 import re
 import hashlib
@@ -253,14 +253,9 @@ else:
     with col_d2:
         end_date = st.date_input("End Date", today)
 
-# Use normalized calendar dates. This avoids 1D losing today's records because
-# of timestamp/timezone formatting differences.
-date_only = df['Parsed_Date'].dt.normalize()
-start_ts = pd.Timestamp(start_date)
-end_ts = pd.Timestamp(end_date) + pd.Timedelta(days=1)
-mask = (date_only >= start_ts) & (date_only < end_ts)
-df_filtered = df.loc[mask].copy()
-st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df_filtered)}**")
+mask = (df['Parsed_Date'].dt.date >= start_date) & (df['Parsed_Date'].dt.date <= end_date)
+df = df.loc[mask]
+st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
 st.markdown("---")
 
 # ============================================================
@@ -400,7 +395,7 @@ def render_deal_ui(item, record_num=None):
 # ============================================================
 # TABS
 # ============================================================
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📋 Demand", "📊 Analytics Dashboard"])
+tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Analytics Dashboard"])
 
 # ============================================================
 # TAB 1: SMART SEARCH
@@ -416,13 +411,13 @@ with tab1:
         st.session_state.search_active1 = False
         st.session_state.last_query1 = user_query
 
-    if st.session_state.search_active1 and user_query.strip() and not df_filtered.empty:
+    if st.session_state.search_active1 and user_query.strip() and not df.empty:
         with st.spinner("Talaash ki ja rahi hai..."):
             search_patterns = get_search_patterns(user_query)
             matched_results = []
             seen_signatures = set()
 
-            for _, row in df_filtered.iterrows():
+            for _, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
                 details = str(row.get('Message Details', row.to_dict())).strip()
@@ -511,7 +506,7 @@ with tab2:
         st.session_state.search_active2 = False
         st.session_state.last_query2 = match_query
 
-    if st.session_state.search_active2 and match_query.strip() and not df_filtered.empty:
+    if st.session_state.search_active2 and match_query.strip() and not df.empty:
         with st.spinner("Deals match ki ja rahi hain..."):
             search_patterns = get_search_patterns(match_query)
             required_deals = []
@@ -520,7 +515,7 @@ with tab2:
 
             required_keywords = r'\b(need|needs|require|required|requires|chahiye|chahye|looking|buyer|buyers|client|wanted|want|darkar|darkaar|talab)\b'
 
-            for _, row in df_filtered.iterrows():
+            for _, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
                 details = str(row.get('Message Details', row.to_dict())).strip()
@@ -608,151 +603,20 @@ with tab2:
                     render_deal_ui(item)
 
 # ============================================================
-# ============================================================
-# TAB 3: DEMAND
-# Shows only requirement/demand messages from the selected date range.
-# Property checkboxes can further narrow the list.
-# "Demand on call" alone is NOT treated as a demand; requirement
-# language is used so normal sale listings are not incorrectly included.
+# TAB 3: ANALYTICS
 # ============================================================
 with tab3:
-    st.markdown("### 📋 Demand Messages")
-    st.markdown("#### 🏠 Property Type")
-
-    d1, d2, d3, d4 = st.columns(4)
-    with d1:
-        demand_villa = st.checkbox("🏡 Villa", value=False, key="demand_villa")
-    with d2:
-        demand_apartment = st.checkbox("🏢 Apartment", value=False, key="demand_apartment")
-    with d3:
-        demand_plot = st.checkbox("📐 Plots", value=False, key="demand_plot")
-    with d4:
-        demand_shop = st.checkbox("🏪 Shops", value=False, key="demand_shop")
-
-    selected_types = set()
-    if demand_villa:
-        selected_types.add("Villa")
-    if demand_apartment:
-        selected_types.add("Apartment")
-    if demand_plot:
-        selected_types.add("Plot")
-    if demand_shop:
-        selected_types.add("Shop")
-
-    demand_pattern = re.compile(
-        r"\b(?:need|needs|require|required|requires|requird|requierd|reqird|"
-        r"requirement|requirements|looking|wanted|want|buyer|buyers|client|"
-        r"chahiye|chahye|darkar|darkaar|talab)\b", re.I
-    )
-
-    def demand_record(text):
-        return bool(demand_pattern.search(str(text).lower()))
-
-    def demand_property_types(text):
-        t = str(text).lower()
-        found = set()
-        if re.search(regex_for_aliases(KEYWORD_GROUPS["villa"]), t) or re.search(regex_for_aliases(KEYWORD_GROUPS["house"]), t):
-            found.add("Villa")
-        if re.search(regex_for_aliases(KEYWORD_GROUPS["apartment"]), t):
-            found.add("Apartment")
-        if re.search(regex_for_aliases(KEYWORD_GROUPS["plot"]), t):
-            found.add("Plot")
-        if re.search(regex_for_aliases(KEYWORD_GROUPS["shop"]), t):
-            found.add("Shop")
-        return found
-
-    demand_items = []
-    seen_demand = set()
-
-    for _, row in df_filtered.iterrows():
-        date_time = row.get("Date & Time", "N/A")
-        sender = row.get("Sender / Contact", row.get("Source/Sender", "N/A"))
-        details = str(row.get("Message Details", row.to_dict())).strip()
-        paragraphs = re.split(r"\n\s*\n", details)
-        if not paragraphs:
-            continue
-
-        header_chunk = paragraphs[0]
-        for para in paragraphs:
-            if not (demand_record(para) or demand_record(header_chunk)):
-                continue
-
-            types = demand_property_types(para)
-            if selected_types and not (types & selected_types):
-                continue
-
-            clean_para = para.replace("\n", "<br>")
-            highlighted = (
-                "<mark style='background-color:#fff3cd; color:#000; padding:2px 4px; "
-                f"border-radius:3px;'>{clean_para}</mark>"
-            )
-            signature = f"{sender}_{date_time}_{re.sub(r'<[^>]*?>', '', clean_para).strip().lower()}"
-            if signature in seen_demand:
-                continue
-            seen_demand.add(signature)
-
-            demand_items.append({
-                "id": generate_id(date_time, sender, clean_para),
-                "date_time": date_time,
-                "sender": sender,
-                "deal_text": highlighted,
-                "wa_link": get_clean_whatsapp(f"{sender} {details}"),
-                "original_details": details.replace("\n", "<br>"),
-                "source_tab": "demand",
-            })
-
-    if selected_types:
-        st.success(f"🎯 {len(demand_items)} Demand records found for: {' + '.join(sorted(selected_types))}")
-    else:
-        st.success(f"🎯 {len(demand_items)} Demand records found in selected date range")
-
-    if demand_items:
-        copy_all_results(demand_items[:150], "demand")
-        btn_text3 = (
-            "🔼 Sab Messages Band Karein (Collapse All)"
-            if st.session_state.show_all_expanders
-            else "🔽 Sab Messages Kholein (Expand All)"
-        )
-        st.button(btn_text3, on_click=toggle_expanders, key="btn_exp_demand")
-
-        for i, item in enumerate(demand_items[:150], 1):
-            st.markdown(
-                f"<h3 style='text-align:center;'><span style='background-color:#fff5f5; color:#b91c1c; "
-                f"padding:4px 12px; border-radius:6px; border:1px solid #fecaca;'>Record #{i}</span></h3>",
-                unsafe_allow_html=True,
-            )
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"🕒 **Waqt:** {item['date_time']}")
-            with c2:
-                st.markdown(f"👤 **Source:** {item['sender']}")
-            st.markdown(f"🔴 **Demand:**<br>{item['deal_text']}", unsafe_allow_html=True)
-            if item["wa_link"]:
-                st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({item['wa_link']})", unsafe_allow_html=True)
-            with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
-                st.markdown(item["original_details"], unsafe_allow_html=True)
-            st.markdown("<hr>", unsafe_allow_html=True)
-    else:
-        if selected_types:
-            st.info("Is date range mein selected property type ki Demand nahi mili.")
-        else:
-            st.info("Is date range mein koi Demand message nahi mila.")
-
-# ============================================================
-# TAB 4: ANALYTICS
-# ============================================================
-with tab4:
     st.markdown("### 📊 Market Analytics Dashboard")
-    if not df_filtered.empty:
+    if not df.empty:
         st.markdown("#### 📈 Daily Market Activity")
-        daily_counts = df_filtered.groupby(df_filtered['Parsed_Date'].dt.date).size()
+        daily_counts = df.groupby(df['Parsed_Date'].dt.date).size()
         st.line_chart(daily_counts)
 
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.markdown("#### 🏙️ Top 15 Active Precincts")
             precinct_pattern = r'(?i)\b(?:p[-_]?|precinct\s*)([0-9]+[a-z]?)\b'
-            extracted_p = df_filtered['Message Details'].astype(str).str.extractall(precinct_pattern)[0]
+            extracted_p = df['Message Details'].astype(str).str.extractall(precinct_pattern)[0]
             if not extracted_p.empty:
                 p_counts = extracted_p.value_counts().reset_index()
                 p_counts.columns = ['Precinct', 'Mentions']
@@ -773,7 +637,7 @@ with tab4:
                     types.append('Commercial')
                 return types if types else ['Other']
 
-            all_types = df_filtered['Message Details'].apply(get_prop_type).explode()
+            all_types = df['Message Details'].apply(get_prop_type).explode()
             st.bar_chart(all_types.value_counts())
 
             st.markdown("#### ⚖️ Demand vs Supply")
@@ -784,13 +648,13 @@ with tab4:
                     return 'Required (Demand)'
                 return 'Available (Supply)'
 
-            ds_counts = df_filtered['Message Details'].apply(get_demand_supply).value_counts()
+            ds_counts = df['Message Details'].apply(get_demand_supply).value_counts()
             st.bar_chart(ds_counts)
 
         with col_c2:
             st.markdown("#### 📐 Top Property Sizes")
             size_pattern = r'(?i)(\d{2,4})\s*(?:gaz|sq\s*yard|sqyd|sq\s*yds|yards|yard|sqft|sq\s*ft)'
-            extracted_sizes = df_filtered['Message Details'].astype(str).str.extractall(size_pattern)[0]
+            extracted_sizes = df['Message Details'].astype(str).str.extractall(size_pattern)[0]
             if not extracted_sizes.empty:
                 s_counts = extracted_sizes.value_counts().reset_index()
                 s_counts.columns = ['Size', 'Count']
@@ -815,7 +679,7 @@ with tab4:
                     feats.append('Main Road')
                 return feats
 
-            all_feats = df_filtered['Message Details'].apply(get_features).explode().dropna()
+            all_feats = df['Message Details'].apply(get_features).explode().dropna()
             if not all_feats.empty:
                 st.bar_chart(all_feats.value_counts())
             else:
@@ -835,7 +699,7 @@ with tab4:
                     status.append('Unfurnished')
                 return status
 
-            all_status = df_filtered['Message Details'].apply(get_status).explode().dropna()
+            all_status = df['Message Details'].apply(get_status).explode().dropna()
             if not all_status.empty:
                 st.bar_chart(all_status.value_counts())
             else:
