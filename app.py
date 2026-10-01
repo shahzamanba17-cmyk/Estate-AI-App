@@ -3,6 +3,8 @@ import pandas as pd
 import re
 import hashlib
 import datetime
+import html
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide")
 
@@ -257,58 +259,88 @@ st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
 st.markdown("---")
 
 # ============================================================
-# SELECTION SYSTEM
-# The selection state is independent from expand/collapse state.
-# Therefore Select All keeps working whether messages are open or closed.
+# COPY ALL RESULTS
+# Copies the complete text of every result currently shown.
+# This is independent of Expand All / Collapse All.
 # ============================================================
-def selection_controls(items, prefix):
-    ids = [item['id'] for item in items]
-    if not ids:
+def clean_html_text(value):
+    value = str(value)
+    value = re.sub(r'<br\s*/?>', '\n', value, flags=re.I)
+    value = re.sub(r'<[^>]+>', '', value)
+    return html.unescape(value).strip()
+
+
+def make_copy_text(items):
+    blocks = []
+    for number, item in enumerate(items, 1):
+        deal_text = clean_html_text(item.get('deal_text', ''))
+        original = clean_html_text(item.get('original_details', ''))
+        block = (
+            f"Record #{number}\n"
+            f"Waqt: {item.get('date_time', 'N/A')}\n"
+            f"Source: {item.get('sender', 'N/A')}\n"
+            f"Relevant Deal: {deal_text}"
+        )
+        if original and original != deal_text:
+            block += f"\nOriginal Message: {original}"
+        blocks.append(block)
+    return "\n\n" + "\n\n------------------------------\n\n".join(blocks)
+
+
+def copy_all_results(items, prefix):
+    if not items:
         return
 
-    # Make sure every checkbox has a stable state.
-    for record_id in ids:
-        key = f"select_{prefix}_{record_id}"
-        if key not in st.session_state:
-            st.session_state[key] = record_id in st.session_state.selected_ids
+    # The UI is a real Copy All button. It does not depend on
+    # whether the individual expanders are open or closed.
+    copy_text = make_copy_text(items)
+    safe_text = html.escape(copy_text)
+    height = min(500, max(160, 110 + len(items) * 45))
 
-    selected_here = sum(1 for record_id in ids if record_id in st.session_state.selected_ids)
-
-    c1, c2, c3 = st.columns([1.3, 1.2, 3])
-    with c1:
-        if st.button("☑ Select All", key=f"select_all_{prefix}"):
-            for record_id in ids:
-                st.session_state.selected_ids.add(record_id)
-                st.session_state[f"select_{prefix}_{record_id}"] = True
-            st.rerun()
-    with c2:
-        if st.button("☐ Clear Selection", key=f"clear_all_{prefix}"):
-            st.session_state.selected_ids.clear()
-            for record_id in ids:
-                st.session_state[f"select_{prefix}_{record_id}"] = False
-            st.rerun()
-    with c3:
-        st.markdown(f"**Selected: {selected_here} / {len(ids)}**")
-
-
-def record_checkbox(item, prefix):
-    record_id = item['id']
-    key = f"select_{prefix}_{record_id}"
-    if key not in st.session_state:
-        st.session_state[key] = record_id in st.session_state.selected_ids
-    checked = st.checkbox("Select this record", key=key)
-    if checked:
-        st.session_state.selected_ids.add(record_id)
-    else:
-        st.session_state.selected_ids.discard(record_id)
-    return checked
+    components.html(
+        f"""
+        <div style="font-family:Arial,sans-serif;">
+          <button id="copyBtn" style="
+            background:#198754;color:white;border:none;border-radius:6px;
+            padding:10px 18px;font-size:16px;cursor:pointer;
+          ">📋 Copy All Records</button>
+          <span id="status" style="margin-left:10px;font-weight:600;"></span>
+          <textarea id="allText" style="
+            width:100%;height:{height}px;margin-top:10px;padding:10px;
+            border:1px solid #ccc;border-radius:6px;font-size:14px;
+            box-sizing:border-box;
+          " readonly>{safe_text}</textarea>
+          <div style="font-size:12px;color:#666;margin-top:5px;">
+            Copies all {len(items)} records. Works the same with Expand All or Collapse All.
+          </div>
+        </div>
+        <script>
+        const btn = document.getElementById('copyBtn');
+        const box = document.getElementById('allText');
+        const status = document.getElementById('status');
+        btn.addEventListener('click', async () => {{
+          try {{
+            await navigator.clipboard.writeText(box.value);
+            status.textContent = '✅ Copied!';
+          }} catch (e) {{
+            box.focus();
+            box.select();
+            document.execCommand('copy');
+            status.textContent = '✅ Copied!';
+          }}
+          setTimeout(() => status.textContent = '', 2500);
+        }});
+        </script>
+        """,
+        height=height + 80,
+        scrolling=True,
+    )
 
 
 # ============================================================
 # UI RENDERER
 # ============================================================
-def render_deal_ui(item, record_num=None, selection_prefix="tab1"):
-    record_checkbox(item, selection_prefix)
+def render_deal_ui(item, record_num=None):
 
     if item['source_tab'] == 'tab1':
         title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
@@ -454,11 +486,11 @@ with tab1:
             st.warning("❌ Aapke keywords wala koi record nahi mila.")
         else:
             st.success(f"🎉 Qamyabi! {len(matched_results)} unique matching records mil gaye hain:")
-            selection_controls(matched_results, "tab1")
+            copy_all_results(matched_results[:150], "tab1")
             btn_text = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
             st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
             for match_idx, item in enumerate(matched_results[:150], 1):
-                render_deal_ui(item, match_idx, "tab1")
+                render_deal_ui(item, match_idx)
 
 # ============================================================
 # TAB 2: DEAL MATCHER
@@ -549,7 +581,7 @@ with tab2:
 
         all_matcher_items = available_deals + required_deals
         if available_deals or required_deals:
-            selection_controls(all_matcher_items, "tab2")
+            copy_all_results(all_matcher_items[:50], "tab2")
             btn_text2 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
             st.button(btn_text2, on_click=toggle_expanders, key="btn_exp_t2")
 
@@ -560,7 +592,7 @@ with tab2:
                 st.info("Koi 'Available' deal nahi mili.")
             else:
                 for item in available_deals[:25]:
-                    render_deal_ui(item, selection_prefix="tab2")
+                    render_deal_ui(item)
 
         with col_req:
             st.markdown("### 🔴 Required (Demand)")
@@ -568,7 +600,7 @@ with tab2:
                 st.info("Koi 'Required' (Demand) deal nahi mili.")
             else:
                 for item in required_deals[:25]:
-                    render_deal_ui(item, selection_prefix="tab2")
+                    render_deal_ui(item)
 
 # ============================================================
 # TAB 3: ANALYTICS
