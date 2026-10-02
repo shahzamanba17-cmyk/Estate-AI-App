@@ -14,10 +14,18 @@ st.set_page_config(page_title="Deal", page_icon="", layout="wide")
 # ============================================================
 st.markdown("""
 <style>
-::-webkit-scrollbar { width: 16px !important; height: 16px !important; }
-::-webkit-scrollbar-track { background: #f1f1f1 !important; }
-::-webkit-scrollbar-thumb { background: #888 !important; border-radius: 8px !important; border: 3px solid #f1f1f1 !important; }
-::-webkit-scrollbar-thumb:hover { background: #555 !important; }
+/* Hide visible scrollbars, but keep normal mouse/touch scrolling working. */
+html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar,
+[data-testid="stAppViewContainer"]::-webkit-scrollbar,
+[data-testid="stMain"]::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -70,15 +78,16 @@ def load_data():
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
-# Refresh button + total record count stay together directly under the Ayat.
-col_btn, col_count = st.columns([1, 1])
+# Refresh button + total record count stay directly under the Ayat.
+# Keep only about 2 cm of space between them.
+col_btn, col_count, col_empty = st.columns([1, 0.42, 5.8], gap="small")
 with col_btn:
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
         st.rerun()
 with col_count:
     st.markdown(
-        f"<div style='display:flex;align-items:center;height:38px;font-size:16px;font-weight:600;'>"
+        f"<div style='display:flex;align-items:center;height:38px;font-size:16px;font-weight:600;white-space:nowrap;'>"
         f"<span style='display:inline-block;width:17px;height:17px;background:#35d07f;border-radius:50%;margin-right:7px;'></span>{len(df)}"
         f"</div>",
         unsafe_allow_html=True,
@@ -275,8 +284,10 @@ else:
 parsed_dates_only = df['Parsed_Date'].dt.date
 mask = (parsed_dates_only >= start_date) & (parsed_dates_only <= end_date)
 df = df.loc[mask].copy()
-st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
-st.markdown("---")
+st.markdown(
+    f"<div style='margin:0 0 2px 0;padding:0;line-height:1.25;'>**🎯 Filtered Records ({quick_days}): {len(df)}**</div>",
+    unsafe_allow_html=True,
+)
 
 # ============================================================
 # COPY ALL RESULTS
@@ -384,7 +395,8 @@ def render_record_numbers(total, current, query_key):
 
     st.markdown(
         '<div style="display:flex;flex-wrap:wrap;justify-content:center;'
-        'align-items:center;gap:clamp(2px,0.65vw,7px);width:100%;margin:4px 0 12px 0;">'
+        'align-items:center;gap:clamp(3px,0.65vw,7px);width:100%;'
+        'margin:2px 0 6px 0;padding:0;overflow:visible;">'
         + "".join(numbers_html)
         + '</div>',
         unsafe_allow_html=True,
