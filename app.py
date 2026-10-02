@@ -6,7 +6,7 @@ import datetime
 import html
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Deal", page_icon="🏠", layout="wide")
+st.set_page_config(page_title="اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ", page_icon="🏠", layout="wide")
 
 # ============================================================
 # BASIC UI
