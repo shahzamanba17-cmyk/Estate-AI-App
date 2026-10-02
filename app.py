@@ -14,22 +14,14 @@ st.set_page_config(page_title="Deal", page_icon="", layout="wide")
 # ============================================================
 st.markdown("""
 <style>
-/* Hide visible scrollbars, but keep normal mouse/touch scrolling working. */
-html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-}
-html::-webkit-scrollbar, body::-webkit-scrollbar,
-[data-testid="stAppViewContainer"]::-webkit-scrollbar,
-[data-testid="stMain"]::-webkit-scrollbar {
-    width: 0 !important;
-    height: 0 !important;
-    display: none !important;
-}
+::-webkit-scrollbar { width: 16px !important; height: 16px !important; }
+::-webkit-scrollbar-track { background: #f1f1f1 !important; }
+::-webkit-scrollbar-thumb { background: #888 !important; border-radius: 8px !important; border: 3px solid #f1f1f1 !important; }
+::-webkit-scrollbar-thumb:hover { background: #555 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; margin-bottom: 4px;'>اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ</h1>", unsafe_allow_html=True)
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
@@ -78,26 +70,18 @@ def load_data():
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
 
-# Refresh button + total record count stay directly under the Ayat.
-# Keep only about 2 cm of space between them.
-col_btn, col_count, col_empty = st.columns([1, 0.42, 5.8], gap="small")
+col_btn, col_info = st.columns([1, 4])
 with col_btn:
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
         st.rerun()
-with col_count:
-    st.markdown(
-        f"<div style='display:flex;align-items:center;height:38px;font-size:16px;font-weight:600;white-space:nowrap;'>"
-        f"<span style='display:inline-block;width:17px;height:17px;background:#35d07f;border-radius:50%;margin-right:7px;'></span>{len(df)}"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
 
 if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
     st.stop()
 else:
-    st.markdown("<div style='height:2px;'></div>", unsafe_allow_html=True)
+    st.markdown(f"🟢 **{len(df)}**")
+    st.markdown("---")
 
 # ============================================================
 # KEYWORD INTELLIGENCE
@@ -235,11 +219,11 @@ def generate_id(date_time, sender, text):
 # ============================================================
 # DATE FILTER
 # ============================================================
+st.markdown("### 📅 Date Filter")
 quick_days = st.radio(
-    "",
+    "Quick Select:",
     ["1D", "2D", "3D", "4D", "5D", "6D", "7D", "2W", "3W", "1M", "All Time", "Custom Range"],
     horizontal=True,
-    label_visibility="collapsed",
 )
 
 # Pakistan local date is used for the filter.
@@ -284,10 +268,8 @@ else:
 parsed_dates_only = df['Parsed_Date'].dt.date
 mask = (parsed_dates_only >= start_date) & (parsed_dates_only <= end_date)
 df = df.loc[mask].copy()
-st.markdown(
-    f"<div style='margin:0 0 2px 0;padding:0;line-height:1.25;'>**🎯 Filtered Records ({quick_days}): {len(df)}**</div>",
-    unsafe_allow_html=True,
-)
+st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
+st.markdown("---")
 
 # ============================================================
 # COPY ALL RESULTS
@@ -366,49 +348,6 @@ def copy_all_results(items, prefix):
         height=height + 80,
         scrolling=True,
     )
-
-
-# ============================================================
-# MOBILE-FRIENDLY RECORD PAGINATION
-# One result is shown at a time. The numbered selector lets the
-# user jump directly to any record without removing normal page
-# finger-scrolling.
-# ============================================================
-def render_record_numbers(total, current, query_key):
-    if total <= 1:
-        return
-
-    numbers_html = []
-    for n in range(1, total + 1):
-        active = n == current
-        bg = "#198754" if active else "#ffffff"
-        fg = "#ffffff" if active else "#333333"
-        border = "#198754" if active else "#cfd4da"
-        numbers_html.append(
-            f'<a href="?{query_key}={n}" target="_top" '
-            f'style="display:inline-flex;align-items:center;justify-content:center;'
-            f'width:clamp(27px,4.2vw,40px);height:clamp(27px,4.2vw,40px);'
-            f'min-width:27px;border:1px solid {border};border-radius:6px;'
-            f'background:{bg};color:{fg};text-decoration:none;font-size:clamp(11px,1.8vw,15px);'
-            f'font-weight:{"700" if active else "500"};box-sizing:border-box;">{n}</a>'
-        )
-
-    st.markdown(
-        '<div style="display:flex;flex-wrap:wrap;justify-content:center;'
-        'align-items:center;gap:clamp(3px,0.65vw,7px);width:100%;'
-        'margin:2px 0 6px 0;padding:0;overflow:visible;">'
-        + "".join(numbers_html)
-        + '</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def get_requested_record(query_key, total):
-    try:
-        value = int(st.query_params.get(query_key, "1"))
-    except (TypeError, ValueError):
-        value = 1
-    return max(1, min(value, total))
 
 
 # ============================================================
@@ -560,17 +499,11 @@ with tab1:
             st.warning("❌ Aapke keywords wala koi record nahi mila.")
         else:
             st.success(f"🎉 Qamyabi! {len(matched_results)} unique matching records mil gaye hain:")
-            visible_results = matched_results[:150]
-            total_results = len(visible_results)
-
-            current_record = get_requested_record("tab1_record", total_results)
-            render_record_numbers(total_results, current_record, "tab1_record")
-
-            copy_all_results(visible_results, "tab1")
+            copy_all_results(matched_results[:150], "tab1")
             btn_text = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
             st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
-
-            render_deal_ui(visible_results[current_record - 1], current_record)
+            for match_idx, item in enumerate(matched_results[:150], 1):
+                render_deal_ui(item, match_idx)
 
 # ============================================================
 # TAB 2: DEAL MATCHER
