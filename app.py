@@ -14,7 +14,7 @@ st.set_page_config(page_title="Deal", page_icon="", layout="wide")
 # ============================================================
 st.markdown("""
 <style>
-::-webkit-scrollbar { width: 16px !important; height: 16px !important; }
+::-webkit-scrollbar { width: 26px !important; height: 16px !important; }
 ::-webkit-scrollbar-track { background: #f1f1f1 !important; }
 ::-webkit-scrollbar-thumb { background: #888 !important; border-radius: 8px !important; border: 3px solid #f1f1f1 !important; }
 ::-webkit-scrollbar-thumb:hover { background: #555 !important; }
