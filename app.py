@@ -75,7 +75,7 @@ if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
     st.stop()
 else:
-    st.markdown(f"🟢 **Total Records (Sheet mein): {len(df)}**")
+    st.markdown(f"🟢 **{len(df)}**")
     st.markdown("---")
 
 # ============================================================
