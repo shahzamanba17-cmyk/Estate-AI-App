@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import hashlib
 import datetime
+from zoneinfo import ZoneInfo
 import html
 import streamlit.components.v1 as components
 
@@ -54,7 +55,11 @@ def load_data():
     try:
         df = pd.read_csv(url)
         if not df.empty and 'Date & Time' in df.columns:
-            df['Parsed_Date'] = pd.to_datetime(df['Date & Time'], errors='coerce')
+            df['Parsed_Date'] = pd.to_datetime(
+            df['Date & Time'],
+            errors='coerce',
+            dayfirst=True
+        )
             df = df.sort_values(by='Parsed_Date', ascending=False)
         return df
     except Exception as e:
@@ -221,8 +226,12 @@ quick_days = st.radio(
     horizontal=True,
 )
 
-today = datetime.date.today()
+# Pakistan local date is used for the filter.
+pakistan_tz = ZoneInfo("Asia/Karachi")
+today = datetime.datetime.now(pakistan_tz).date()
+
 if quick_days == "1D":
+    # Today only
     start_date, end_date = today, today
 elif quick_days == "2D":
     start_date, end_date = today - datetime.timedelta(days=1), today
@@ -237,24 +246,28 @@ elif quick_days == "6D":
 elif quick_days == "7D":
     start_date, end_date = today - datetime.timedelta(days=6), today
 elif quick_days == "2W":
-    start_date, end_date = today - datetime.timedelta(days=14), today
+    start_date, end_date = today - datetime.timedelta(days=13), today
 elif quick_days == "3W":
-    start_date, end_date = today - datetime.timedelta(days=21), today
+    start_date, end_date = today - datetime.timedelta(days=20), today
 elif quick_days == "1M":
-    start_date, end_date = today - datetime.timedelta(days=30), today
+    start_date, end_date = today - datetime.timedelta(days=29), today
 elif quick_days == "All Time":
-    start_date = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today
+    valid_dates = df['Parsed_Date'].dropna()
+    start_date = valid_dates.min().date() if not valid_dates.empty else today
     end_date = today
 else:
     col_d1, col_d2 = st.columns(2)
-    min_d = df['Parsed_Date'].min().date() if pd.notnull(df['Parsed_Date'].min()) else today - datetime.timedelta(days=30)
+    valid_dates = df['Parsed_Date'].dropna()
+    min_d = valid_dates.min().date() if not valid_dates.empty else today - datetime.timedelta(days=30)
     with col_d1:
         start_date = st.date_input("Start Date", min_d)
     with col_d2:
         end_date = st.date_input("End Date", today)
 
-mask = (df['Parsed_Date'].dt.date >= start_date) & (df['Parsed_Date'].dt.date <= end_date)
-df = df.loc[mask]
+# Compare calendar dates only. Sheet dates are explicitly parsed as DD/MM/YYYY.
+parsed_dates_only = df['Parsed_Date'].dt.date
+mask = (parsed_dates_only >= start_date) & (parsed_dates_only <= end_date)
+df = df.loc[mask].copy()
 st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
 st.markdown("---")
 
