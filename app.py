@@ -6,7 +6,7 @@ import datetime
 import html
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ", page_icon="🏠", layout="wide")
+st.set_page_config(page_title="Deal", page_icon="", layout="wide")
 
 # ============================================================
 # BASIC UI
@@ -20,7 +20,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center;'>Deal</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ</h1>", unsafe_allow_html=True)
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
 
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
