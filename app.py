@@ -581,7 +581,7 @@ with tab3:
 # ============================================================
 with tab4:
     st.markdown("### 📋 Apne Clients ki List Dekhein")
-    st.markdown("Apni Google Sheet (`Client Requirements`) ka data direct yahan filter aur manage karein. Yeh data har 30 minute mein auto-refresh hota hai.")
+    st.markdown("Client Requirements")
     
     # TTL set to 1800 seconds (30 mins) for auto-refresh
     @st.cache_data(ttl=1800)
