@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import html
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Deal", page_icon="", layout="wide")
+st.set_page_config(page_title="Deal Tracker", page_icon="🏠", layout="wide")
 
 # ============================================================
 # BASIC UI
@@ -45,7 +45,7 @@ def toggle_expanders():
     st.session_state.show_all_expanders = not st.session_state.show_all_expanders
 
 # ============================================================
-# LOAD DATA
+# LOAD MAIN DATA (SHEET 1)
 # ============================================================
 @st.cache_data(ttl=3600)
 def load_data():
@@ -84,17 +84,10 @@ else:
 # KEYWORD INTELLIGENCE
 # ============================================================
 KEYWORD_GROUPS = {
-    "apartment": [
-        "apartment", "apartments", "appartment", "appartments", "aprtment",
-        "apprtment", "apprtments", "appatment", "apparment", "appartmint",
-        "appartmet", "flat", "flats"
-    ],
-    "villa": ["villa", "villas", "vila", "vilaa", "villah", "vill", "cilla"],
-    "house": ["house", "houses", "home", "homes", "bungalow", "bungalows"],
-    "plot": ["plot", "plots"],
-    "shop": ["shop", "shops"],
-    "office": ["office", "offices"],
-    "commercial": ["commercial", "commercials", "comercial", "commercil", "commercail"],
+    "apartment": ["apartment", "apartments", "appartment", "appartments", "aprtment", "apprtment", "apprtments", "appatment", "apparment", "appartmint", "appartmet", "flat", "flats"],
+    "villa": ["villa", "villas", "vila", "vilaa", "villah", "vill", "cilla", "house", "houses", "home", "homes", "bungalow", "bungalows"],
+    "plot": ["plot", "plots", "file", "files"],
+    "commercial": ["shop", "shops", "office", "offices", "commercial", "commercials", "comercial", "commercil", "commercail"],
     "portion": ["portion", "portions"],
     "tower": ["tower", "towers", "towr"],
     "precinct": ["precinct", "precincts", "precint", "preinct", "precient", "precent", "pricenct", "preint"],
@@ -104,15 +97,8 @@ KEYWORD_GROUPS = {
     "rent": ["rent", "rental", "rentals", "renting", "rnt"],
     "sale": ["sale", "sales", "sell", "selling", "seller", "sele", "sal", "sare", "saleh"],
     "purchase": ["purchase", "purchases", "buy", "buying", "buyer", "buyers"],
-    "available": [
-        "available", "avaible", "avaliable", "avaialble", "avalable", "availabe",
-        "availablle", "availabll", "avialable", "avalible", "ailable"
-    ],
-    "required": [
-        "required", "require", "requires", "requird", "requierd", "reqird", "rrquired",
-        "sequire", "need", "needs", "looking", "wanted", "want", "buyer", "client",
-        "chahiye", "chahye", "darkar", "darkaar", "talab"
-    ],
+    "available": ["available", "avaible", "avaliable", "avaialble", "avalable", "availabe", "availablle", "availabll", "avialable", "avalible", "ailable"],
+    "required": ["required", "require", "requires", "requird", "requierd", "reqird", "rrquired", "sequire", "need", "needs", "looking", "wanted", "want", "buyer", "client", "chahiye", "chahye", "darkar", "darkaar", "talab"],
     "demand": ["demand", "demands", "damand", "demamd", "dmand", "demmand", "deamand", "dsmand", "demans", "demond", "decmand", "demad"],
     "allotment": ["allotment", "allotments", "alotment", "alltment", "allotement", "allottment", "allotmnet", "alltmnt"],
     "corner": ["corner", "corners", "conner", "cornr", "carner", "coner"],
@@ -148,14 +134,11 @@ def get_search_patterns(query):
     raw_terms = query.lower().split()
     patterns = []
     used_groups = set()
-
     for term in raw_terms:
         p_match = re.fullmatch(r"p[-_]?([0-9]+[a-z]?)", term)
         if p_match:
             number = p_match.group(1)
-            patterns.append(
-                rf"\b(?:p[-_]?{re.escape(number)}|precinct[-_\s]*{re.escape(number)})\b"
-            )
+            patterns.append(rf"\b(?:p[-_]?{re.escape(number)}|precinct[-_\s]*{re.escape(number)})\b")
             continue
         canonical = ALIAS_TO_GROUP.get(term)
         if canonical and canonical not in used_groups:
@@ -168,11 +151,11 @@ def get_search_patterns(query):
     return patterns
 
 # ============================================================
-# WHATSAPP NUMBER
+# WHATSAPP NUMBER HELPER
 # ============================================================
 def get_clean_whatsapp(text):
     phone_pattern = r'(?:\+92|0)?(3[0-9]{9})'
-    match = re.search(phone_pattern, text)
+    match = re.search(phone_pattern, str(text))
     if match:
         num = '92' + match.group(1)
         return f"https://wa.me/{num}"
@@ -258,7 +241,6 @@ def copy_all_results(items, prefix):
           <button id="copyBtn" style="background:#198754;color:white;border:none;border-radius:6px;padding:10px 18px;font-size:16px;cursor:pointer;">📋 Copy All Records</button>
           <span id="status" style="margin-left:10px;font-weight:600;"></span>
           <textarea id="allText" style="width:100%;height:{height}px;margin-top:10px;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:14px;box-sizing:border-box;" readonly>{safe_text}</textarea>
-          <div style="font-size:12px;color:#666;margin-top:5px;">Copies all {len(items)} records. Works the same with Expand All or Collapse All.</div>
         </div>
         <script>
         const btn = document.getElementById('copyBtn');
@@ -281,7 +263,7 @@ def copy_all_results(items, prefix):
 # UI RENDERER
 # ============================================================
 def render_deal_ui(item, record_num=None):
-    if item['source_tab'] == 'tab1' or item['source_tab'] == 'tab4':
+    if item['source_tab'] == 'tab1':
         title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
         st.markdown(f"<h3 style='text-align: center;'><span style='background-color: #d4edda; color: #155724; padding: 4px 12px; border-radius: 6px; border: 1px solid #c3e6cb;'>{title_text}</span></h3>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
@@ -305,15 +287,38 @@ def render_deal_ui(item, record_num=None):
 
 
 # ============================================================
-# TABS (Updated with 4th Tab)
+# TABS
 # ============================================================
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Analytics Dashboard", "🎯 Client Tracker"])
+tab1, tab2, tab3, tab4 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Analytics Dashboard", "📋 Client Tracker"])
 
 # ============================================================
-# TAB 1: SMART SEARCH (Bilkul Purana/Untouched)
+# TAB 1: SMART SEARCH (Original logic with added filters)
 # ============================================================
 with tab1:
     st.markdown("### 🔍 General Search")
+    
+    st.markdown("#### 🏷️ Filter By Category")
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    with col_f1: show_plots = st.checkbox("Plots", value=True, key="chk_plots")
+    with col_f2: show_villas = st.checkbox("Villas / Houses", value=True, key="chk_villas")
+    with col_f3: show_apts = st.checkbox("Apartments", value=True, key="chk_apts")
+    with col_f4: show_comm = st.checkbox("Shops / Commercial", value=True, key="chk_comm")
+
+    def matches_category_filter(text):
+        text_lower = str(text).lower()
+        if show_plots and show_villas and show_apts and show_comm: return True
+        has_plot = bool(re.search(r'\b(plot|plots|file|files)\b', text_lower))
+        has_villa = bool(re.search(r'\b(villa|villas|house|houses|home|bungalow)\b', text_lower))
+        has_apt = bool(re.search(r'\b(apartment|apartments|flat|flats|portion)\b', text_lower))
+        has_comm = bool(re.search(r'\b(shop|shops|commercial|office)\b', text_lower))
+        
+        if not (has_plot or has_villa or has_apt or has_comm): return True 
+        if show_plots and has_plot: return True
+        if show_villas and has_villa: return True
+        if show_apts and has_apt: return True
+        if show_comm and has_comm: return True
+        return False
+
     user_query = st.text_input("Search:", placeholder="Ali block apartment ya p3", key="search_input_tab1")
 
     if st.button("🔍 Search Karein", key="btn_tab1"):
@@ -330,9 +335,11 @@ with tab1:
             seen_signatures = set()
 
             for _, row in df.iterrows():
+                details = str(row.get('Message Details', row.to_dict())).strip()
+                if not matches_category_filter(details): continue
+
                 date_time = row.get('Date & Time', 'N/A')
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
-                details = str(row.get('Message Details', row.to_dict())).strip()
                 paragraphs = re.split(r'\n\s*\n', details)
                 if not paragraphs: continue
 
@@ -348,7 +355,6 @@ with tab1:
                         if not (re.search(pattern, para_lower) or re.search(pattern, header_lower)):
                             chunk_match = False
                             break
-
                     if chunk_match and search_patterns:
                         lines = para.split('\n')
                         hl_lines = []
@@ -398,7 +404,7 @@ with tab1:
                 render_deal_ui(item, match_idx)
 
 # ============================================================
-# TAB 2: DEAL MATCHER (Bilkul Purana/Untouched)
+# TAB 2: DEAL MATCHER (Untouched)
 # ============================================================
 with tab2:
     st.markdown("### 🤝 Aamne-Samne Matcher (Demand vs Supply)")
@@ -495,7 +501,7 @@ with tab2:
                 for item in required_deals[:25]: render_deal_ui(item)
 
 # ============================================================
-# TAB 3: ANALYTICS (Bilkul Purana/Untouched)
+# TAB 3: ANALYTICS (Untouched)
 # ============================================================
 with tab3:
     st.markdown("### 📊 Market Analytics Dashboard")
@@ -577,156 +583,119 @@ with tab3:
         st.warning("Data available nahi hai.")
 
 # ============================================================
-# TAB 4: CLIENT TRACKER (Yeh totally naya section hai)
+# TAB 4: CLIENT TRACKER (Completely New Client List Format)
 # ============================================================
 with tab4:
-    st.markdown("### 🎯 Client Filter & Auto-Matches")
-    st.markdown("Yahan aap apni demands ko category-wise filter karke search kar sakte hain, aur neechay aapko Google Sheet se **Auto-Matched Clients** bhi nazar aayenge.")
-
-    # 1. Custom Filtered Search (Tick Marks ke sath)
-    st.markdown("---")
-    st.markdown("#### 🏷️ 1. Category Filter Search")
+    st.markdown("### 📋 Apne Clients ki List Dekhein")
+    st.markdown("Apni Google Sheet (`Client Requirements`) ka data direct yahan filter aur manage karein.")
     
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-    with col_f1: show_plots = st.checkbox("Plots", value=True, key="t4_plot")
-    with col_f2: show_villas = st.checkbox("Villas / Houses", value=True, key="t4_villa")
-    with col_f3: show_apts = st.checkbox("Apartments", value=True, key="t4_apt")
-    with col_f4: show_comm = st.checkbox("Shops / Commercial", value=True, key="t4_comm")
-
-    def matches_category_filter(text):
-        text_lower = str(text).lower()
-        if show_plots and show_villas and show_apts and show_comm: return True
-        has_plot = bool(re.search(r'\b(plot|plots|file|files)\b', text_lower))
-        has_villa = bool(re.search(r'\b(villa|villas|house|houses|home|bungalow)\b', text_lower))
-        has_apt = bool(re.search(r'\b(apartment|apartments|flat|flats|portion)\b', text_lower))
-        has_comm = bool(re.search(r'\b(shop|shops|commercial|office)\b', text_lower))
-        
-        if not (has_plot or has_villa or has_apt or has_comm): return True
-        if show_plots and has_plot: return True
-        if show_villas and has_villa: return True
-        if show_apts and has_apt: return True
-        if show_comm and has_comm: return True
-        return False
-
-    t4_query = st.text_input("Apni filtered zaroorat yahan likhein:", placeholder="e.g. Ali block", key="search_input_tab4")
-    
-    if st.button("🔍 Search With Filters", key="btn_tab4"):
-        if t4_query.strip() and not df.empty:
-            with st.spinner("Talaash ki ja rahi hai..."):
-                search_patterns = get_search_patterns(t4_query)
-                matched_results_t4 = []
-                seen_signatures_t4 = set()
-                
-                for _, row in df.iterrows():
-                    details = str(row.get('Message Details', row.to_dict())).strip()
-                    
-                    if not matches_category_filter(details):
-                        continue
-                        
-                    date_time = row.get('Date & Time', 'N/A')
-                    sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
-                    paragraphs = re.split(r'\n\s*\n', details)
-                    if not paragraphs: continue
-                    
-                    header_chunk = paragraphs[0]
-                    header_lower = header_chunk.lower()
-                    matched_chunks = []
-                    formatted_full_message_paragraphs = []
-                    
-                    for i, para in enumerate(paragraphs):
-                        para_lower = para.lower()
-                        chunk_match = True
-                        for pattern in search_patterns:
-                            if not (re.search(pattern, para_lower) or re.search(pattern, header_lower)):
-                                chunk_match = False
-                                break
-                        if chunk_match and search_patterns:
-                            lines = para.split('\n')
-                            hl_lines = []
-                            for line in lines:
-                                if any(re.search(p, line.lower()) for p in search_patterns):
-                                    hl_lines.append(f"<mark style='background-color: #fff3cd; color: #000; padding: 2px 4px; border-radius: 3px;'>{line.strip()}</mark>")
-                                else:
-                                    hl_lines.append(line.strip())
-                            formatted_para = "<br>".join(hl_lines)
-                            matched_chunks.append(f"<b>[Matched Deal]</b><br>{formatted_para}")
-                            formatted_full_message_paragraphs.append(formatted_para)
-                        else:
-                            formatted_full_message_paragraphs.append(para.replace('\n', '<br>'))
-                            
-                    if matched_chunks:
-                        matched_html = "<br><br>".join(matched_chunks)
-                        highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
-                        wa_link = get_clean_whatsapp(f"{sender} {details}")
-                        clean_text_sig = re.sub(r'<[^>]*?>', '', matched_html).strip().lower()
-                        signature = f"{sender}_{clean_text_sig}"
-                        if signature in seen_signatures_t4: continue
-                        seen_signatures_t4.add(signature)
-                        
-                        item_id = generate_id(date_time, sender, matched_html)
-                        matched_results_t4.append({
-                            'id': item_id,
-                            'date_time': date_time,
-                            'sender': sender,
-                            'deal_text': matched_html,
-                            'wa_link': wa_link,
-                            'original_details': highlighted_original_details,
-                            'source_tab': 'tab4',
-                        })
-                        
-            if matched_results_t4:
-                st.success(f"🎉 Qamyabi! Filter ke hisaab se {len(matched_results_t4)} records mil gaye:")
-                for match_idx, item in enumerate(matched_results_t4[:50], 1):
-                    render_deal_ui(item, match_idx)
-            else:
-                st.warning("❌ Aapke filter aur keywords ke mutabiq koi record nahi mila.")
-
-    # 2. Google Sheet (Matches Tab) Viewer
-    st.markdown("---")
-    st.markdown("#### 📋 2. Auto-Matched Clients (Google Sheet se)")
-    st.markdown("Google Sheet mein jo clients apne add kiye hain aur unke matches nikal kar aaye hain, unki list neechay hai.")
-    
-    @st.cache_data(ttl=120)
-    def load_client_matches():
-        # Ye specific 'Matches' sheet ko CSV ke taur par uthata hai
-        match_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Matches"
+    # 30 Minutes (1800 seconds) auto-refresh cache
+    @st.cache_data(ttl=1800)
+    def load_client_requirements():
+        req_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Client+Requirements"
         try:
-            return pd.read_csv(match_url)
+            return pd.read_csv(req_url)
         except Exception:
             return pd.DataFrame()
-            
-    matches_df = load_client_matches()
-    
-    col_m1, col_m2 = st.columns([1, 4])
-    with col_m1:
-        if st.button("🔄 Refresh Client Matches"):
-            st.cache_data.clear()
-            st.rerun()
-            
-    if matches_df.empty:
-        st.info("Abhi tak Google Sheet mein koi client match nahi mila. Shayad sheet empty hai ya data update nahi hua.")
+
+    clients_df = load_client_requirements()
+
+    # --- FILTERS ROW 1 (PROPERTY TYPE) ---
+    st.markdown("#### 🏷️ 1. Category Filter Search")
+    col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+    with col_t1: c_plots = st.checkbox("Plots", value=True, key="c_plot")
+    with col_t2: c_villas = st.checkbox("Villas / Houses", value=True, key="c_villa")
+    with col_t3: c_apts = st.checkbox("Apartments", value=True, key="c_apt")
+    with col_t4: c_comm = st.checkbox("Shops / Commercial", value=True, key="c_comm")
+
+    # --- FILTERS ROW 2 (ACTION) ---
+    st.markdown("#### 🔄 2. Deal Type (Action)")
+    col_a1, col_a2, col_a3 = st.columns(3)
+    with col_a1: c_buy = st.checkbox("Buy", value=True, key="c_buy")
+    with col_a2: c_sell = st.checkbox("Sell", value=True, key="c_sell")
+    with col_a3: c_rent = st.checkbox("Rent", value=True, key="c_rent")
+
+    st.markdown("---")
+
+    if clients_df.empty:
+        st.info("⚠️ Client Requirements sheet khali hai ya fetch nahi ho saki. Pehle Google Sheet mein entries daalein.")
     else:
-        for idx, row in matches_df.iterrows():
-            if pd.isna(row.get('Client Name')) and pd.isna(row.get('Matched Sender Number')):
+        # Filtering Logic
+        filtered_clients = []
+        for _, row in clients_df.iterrows():
+            c_name = str(row.get('Client Name', '')).strip()
+            if not c_name or c_name == 'nan':
                 continue
+                
+            c_type = str(row.get('Property Type', '')).lower()
+            c_action = str(row.get('Action', '')).lower()
             
-            c_name = str(row.get('Client Name', 'Unknown'))
-            c_type = str(row.get('Action & Type', ''))
-            c_loc = str(row.get('Client Location Demand', ''))
-            sender_num = str(row.get('Matched Sender Number', ''))
-            m_time = str(row.get('Match Time', ''))
-            m_msg = str(row.get('Matched Short Message', ''))
+            # 1. Type Match Check
+            type_match = False
+            if (c_plots and "plot" in c_type) or \
+               (c_villas and ("villa" in c_type or "house" in c_type)) or \
+               (c_apts and ("apartment" in c_type or "flat" in c_type)) or \
+               (c_comm and ("shop" in c_type or "commercial" in c_type)):
+                type_match = True
+                
+            if not c_type or c_type == 'nan': 
+                if c_plots and c_villas and c_apts and c_comm: type_match = True
+
+            # 2. Action Match Check
+            action_match = False
+            if (c_buy and "buy" in c_action) or \
+               (c_sell and "sell" in c_action) or \
+               (c_rent and "rent" in c_action):
+                action_match = True
+                
+            if not c_action or c_action == 'nan':
+                if c_buy and c_sell and c_rent: action_match = True
+
+            # Agar dono filter pass hon to show karein
+            if type_match and action_match:
+                filtered_clients.append(row)
+
+        # Output Results
+        if not filtered_clients:
+            st.warning("❌ Aapke set kiye gaye filters ke mutabiq koi client nahi mila.")
+        else:
+            st.success(f"✅ {len(filtered_clients)} Clients Found!")
             
-            wa_link_match = get_clean_whatsapp(sender_num)
-            wa_btn = f"<a href='{wa_link_match}' target='_blank' style='background-color:#25D366; color:white; padding:5px 10px; border-radius:5px; text-decoration:none;'>📲 Message Sender</a>" if wa_link_match else ""
-            
-            st.markdown(f"""
-            <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #007bff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);'>
-                <h4 style='margin-top:0; color: #007bff;'>👤 Client: {c_name} <span style='font-size:14px; color:#555;'>({c_type})</span></h4>
-                <p style='margin: 5px 0;'><b>📍 Demand:</b> {c_loc}</p>
-                <p style='margin: 5px 0;'><b>🕒 Match Time:</b> {m_time} &nbsp;|&nbsp; <b>📞 Sender:</b> {sender_num} {wa_btn}</p>
-                <div style='background-color: white; padding: 10px; border-radius: 5px; border: 1px solid #dee2e6; margin-top: 10px;'>
-                    <b>📩 Message:</b> <i>{m_msg}</i>
+            # Khoobsurat Table/Card Format
+            for row in filtered_clients:
+                name = str(row.get('Client Name', 'Unknown')).strip()
+                phone = str(row.get('Phone Number', '')).strip()
+                action = str(row.get('Action', '')).strip()
+                ptype = str(row.get('Property Type', '')).strip()
+                loc = str(row.get('Location / Keywords', '')).strip()
+                budget = str(row.get('Budget in Lacs', '')).strip()
+                urgency = str(row.get('Urgency', '')).strip()
+                
+                if budget == 'nan' or not budget: budget = "N/A"
+                if urgency == 'nan' or not urgency: urgency = "N/A"
+                if loc == 'nan' or not loc: loc = "N/A"
+                
+                # WhatsApp Link Genration
+                wa_link = get_clean_whatsapp(phone) if phone and phone != 'nan' else ""
+                wa_btn = f"<a href='{wa_link}' target='_blank' style='background-color:#25D366; color:white; padding:6px 12px; border-radius:5px; text-decoration:none; font-size: 13px; font-weight:bold;'>📲 WhatsApp Chat</a>" if wa_link else "<span style='color:#dc3545;font-size:12px;'>No valid number</span>"
+                
+                st.markdown(f"""
+                <div style='background-color: #ffffff; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 5px solid #6f42c1; box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.08); border: 1px solid #e9ecef;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center;'>
+                        <h4 style='margin:0; color: #333;'>👤 {name}</h4>
+                        <div>{wa_btn}</div>
+                    </div>
+                    <hr style='margin: 10px 0; border-color: #f1f1f1;'>
+                    <table style='width: 100%; font-size: 14.5px; text-align: left; border-collapse: collapse;'>
+                        <tr>
+                            <td style='padding: 5px; color: #495057;'><b>Action:</b> <span style='color:#007bff; font-weight:bold;'>{action}</span></td>
+                            <td style='padding: 5px; color: #495057;'><b>Property:</b> {ptype}</td>
+                            <td style='padding: 5px; color: #495057;'><b>Urgency:</b> {urgency}</td>
+                        </tr>
+                        <tr>
+                            <td colspan='2' style='padding: 5px; color: #495057;'><b>📍 Location / Demand:</b> {loc}</td>
+                            <td style='padding: 5px; color: #495057;'><b>💰 Budget:</b> {budget}</td>
+                        </tr>
+                    </table>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
