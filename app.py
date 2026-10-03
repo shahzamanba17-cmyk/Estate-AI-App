@@ -9,55 +9,12 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Deal", page_icon="", layout="wide")
 
 # ============================================================
-# 🔐 PERSISTENT PASSWORD LOGIN + DEVICE REGISTER
+# 📱 DEVICE REGISTER / LOGGING
 # ============================================================
-import hmac
-import time
 import requests
 
-AUTH_COOKIE_NAME = "deal_login_v2"
-AUTH_COOKIE_DAYS = 3650
-
-APP_PASSWORD = st.secrets.get("APP_PASSWORD", "")
-AUTH_SECRET = st.secrets.get("AUTH_SECRET", "")
 DEVICE_LOG_URL = st.secrets.get("DEVICE_LOG_URL", "")
 DEVICE_LOG_SECRET = st.secrets.get("DEVICE_LOG_SECRET", "")
-
-# Keep authentication state for the current browser session.
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
-# Cookie component is only used to remember the login between browser sessions.
-try:
-    import extra_streamlit_components as stx
-    cookie_manager = stx.CookieManager(key="deal_auth_cookie_manager")
-except Exception:
-    cookie_manager = None
-
-
-def _make_login_token():
-    expires = int(time.time()) + AUTH_COOKIE_DAYS * 24 * 60 * 60
-    payload = str(expires).encode("utf-8")
-    sig = hmac.new(AUTH_SECRET.encode("utf-8"), payload, hashlib.sha256).hexdigest()
-    return f"{expires}.{sig}"
-
-
-def _valid_login_token(token):
-    if not token or not AUTH_SECRET:
-        return False
-    try:
-        expires_text, signature = str(token).split(".", 1)
-        if int(expires_text) < int(time.time()):
-            return False
-        expected = hmac.new(
-            AUTH_SECRET.encode("utf-8"),
-            expires_text.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
-        return hmac.compare_digest(signature, expected)
-    except Exception:
-        return False
-
 
 def _browser_info():
     """Read the browser's User-Agent and turn it into a friendly device label."""
@@ -95,14 +52,13 @@ def _browser_info():
     else:
         browser = "Browser"
 
-    # Same browser/device fingerprint gives the same ID in normal use.
     fingerprint_source = f"{ua}|{language}"
     device_id = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
     return device_id, f"{device_name} ({browser})", ua
 
 
 def _register_device():
-    """Register this browser/device once in the central Google Sheet."""
+    """Register this browser/device in the central Google Sheet."""
     if not DEVICE_LOG_URL or not DEVICE_LOG_SECRET:
         return
     device_id, device_name, user_agent = _browser_info()
@@ -119,7 +75,6 @@ def _register_device():
             timeout=8,
         )
     except Exception:
-        # Device logging must never stop the real-estate website.
         pass
 
 
@@ -138,71 +93,8 @@ def _load_registered_devices():
         return []
 
 
-# Secrets are required. The app stops here instead of exposing the site without protection.
-if not APP_PASSWORD or not AUTH_SECRET:
-    st.error("🔐 Login settings missing. Streamlit Secrets mein APP_PASSWORD aur AUTH_SECRET add karein.")
-    st.stop()
-
-# 1) Current Streamlit session already authenticated -> continue immediately.
-# This is important: after clicking Login, the app does NOT depend on the cookie
-# being readable on the very same rerun. This fixes the previous login loop.
-if not st.session_state.authenticated:
-    existing_token = None
-    if cookie_manager is not None:
-        try:
-            existing_token = cookie_manager.get(AUTH_COOKIE_NAME)
-        except Exception:
-            existing_token = None
-
-    if _valid_login_token(existing_token):
-        st.session_state.authenticated = True
-
-if not st.session_state.authenticated:
-    st.markdown(
-        """
-        <style>
-        .block-container { max-width: 520px !important; padding-top: 90px !important; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("<h2 style='text-align:center;'>🔐 Deal Website Login</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;'>Password enter karein.</p>", unsafe_allow_html=True)
-
-    with st.form("deal_login_form"):
-        entered_password = st.text_input("Password", type="password", placeholder="Enter password")
-        login_clicked = st.form_submit_button("🔓 Login", use_container_width=True)
-
-    if login_clicked:
-        if hmac.compare_digest(entered_password, APP_PASSWORD):
-            # Authenticate THIS Streamlit session first. Do not rerun before this is set.
-            st.session_state.authenticated = True
-
-            # Then save the long-lived browser cookie for future sessions.
-            if cookie_manager is not None:
-                try:
-                    cookie_manager.set(
-                        AUTH_COOKIE_NAME,
-                        _make_login_token(),
-                        expires_at=datetime.datetime.now() + datetime.timedelta(days=AUTH_COOKIE_DAYS),
-                    )
-                except Exception:
-                    pass
-
-            _register_device()
-            st.success("✅ Login successful")
-            st.rerun()
-        else:
-            st.error("❌ Wrong password.")
-
-    st.stop()
-
-# Register/dedupe on every authenticated session; Google Apps Script keeps one row per device.
 _register_device()
 
-# ============================================================
-# END LOGIN
-# ============================================================
 # ============================================================
 # BASIC UI
 # ============================================================
