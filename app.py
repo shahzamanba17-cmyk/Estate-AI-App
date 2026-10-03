@@ -10,6 +10,107 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Deal", page_icon="", layout="wide")
 
 # ============================================================
+# ONE-TIME PASSWORD LOGIN (PERSISTENT BROWSER COOKIE)
+# ============================================================
+import hmac
+import time
+import extra_streamlit_components as stx
+
+AUTH_COOKIE_NAME = "deal_login"
+AUTH_COOKIE_DAYS = 3650  # about 10 years
+
+APP_PASSWORD = st.secrets.get("APP_PASSWORD", "")
+AUTH_SECRET = st.secrets.get("AUTH_SECRET", "")
+
+if not APP_PASSWORD or not AUTH_SECRET:
+    st.error("Login settings are missing. Please add APP_PASSWORD and AUTH_SECRET in Streamlit Secrets.")
+    st.stop()
+
+cookie_manager = stx.CookieManager()
+
+def create_login_token():
+    expires = int(time.time()) + (AUTH_COOKIE_DAYS * 24 * 60 * 60)
+    message = str(expires).encode("utf-8")
+    signature = hmac.new(
+        AUTH_SECRET.encode("utf-8"),
+        message,
+        hashlib.sha256
+    ).hexdigest()
+    return f"{expires}.{signature}"
+
+def is_valid_login_token(token):
+    try:
+        expires_text, signature = str(token).split(".", 1)
+        expires = int(expires_text)
+
+        if expires < int(time.time()):
+            return False
+
+        expected = hmac.new(
+            AUTH_SECRET.encode("utf-8"),
+            expires_text.encode("utf-8"),
+            hashlib.sha256
+        ).hexdigest()
+
+        return hmac.compare_digest(signature, expected)
+    except Exception:
+        return False
+
+login_token = cookie_manager.get(AUTH_COOKIE_NAME)
+
+if not is_valid_login_token(login_token):
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            max-width: 500px !important;
+            padding-top: 80px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        "<h2 style='text-align:center;'>🔐 Deal Website Login</h2>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<p style='text-align:center;'>Password enter karein to website open hogi.</p>",
+        unsafe_allow_html=True
+    )
+
+    with st.form("login_form"):
+        entered_password = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter password"
+        )
+        login_clicked = st.form_submit_button("🔓 Login", use_container_width=True)
+
+    if login_clicked:
+        if hmac.compare_digest(entered_password, APP_PASSWORD):
+            token = create_login_token()
+            expires_at = datetime.datetime.now() + datetime.timedelta(days=AUTH_COOKIE_DAYS)
+            cookie_manager.set(
+                AUTH_COOKIE_NAME,
+                token,
+                expires_at=expires_at
+            )
+            st.success("✅ Login successful. Ab is browser mein dobara password nahi maanga jayega.")
+            time.sleep(0.5)
+            st.rerun()
+        else:
+            st.error("❌ Wrong password.")
+
+    st.stop()
+
+# ============================================================
+# END ONE-TIME PASSWORD LOGIN
+# ============================================================
+
+
+# ============================================================
 # BASIC UI
 # ============================================================
 st.markdown("""
@@ -702,20 +803,3 @@ with tab3:
             def get_status(text):
                 t = str(text).lower()
                 status = []
-                if re.search(r'\bbrand\s*new\b', t):
-                    status.append('Brand New')
-                if re.search(r'\b(?:grey|gray)\s*structure\b', t):
-                    status.append('Grey Structure')
-                if re.search(regex_for_aliases(KEYWORD_GROUPS['furnished']), t):
-                    status.append('Furnished')
-                if re.search(regex_for_aliases(KEYWORD_GROUPS['unfurnished']), t):
-                    status.append('Unfurnished')
-                return status
-
-            all_status = df['Message Details'].apply(get_status).explode().dropna()
-            if not all_status.empty:
-                st.bar_chart(all_status.value_counts())
-            else:
-                st.info("No status keywords found.")
-    else:
-        st.warning("Data available nahi hai.")
