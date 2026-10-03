@@ -6,94 +6,8 @@ import datetime
 from zoneinfo import ZoneInfo
 import html
 import streamlit.components.v1 as components
+
 st.set_page_config(page_title="Deal", page_icon="", layout="wide")
-
-# ============================================================
-# 📱 DEVICE REGISTER / LOGGING
-# ============================================================
-import requests
-
-DEVICE_LOG_URL = st.secrets.get("DEVICE_LOG_URL", "")
-DEVICE_LOG_SECRET = st.secrets.get("DEVICE_LOG_SECRET", "")
-
-def _browser_info():
-    """Read the browser's User-Agent and turn it into a friendly device label."""
-    try:
-        headers = dict(st.context.headers)
-    except Exception:
-        headers = {}
-    ua = str(headers.get("User-Agent", "")).strip()
-    language = str(headers.get("Accept-Language", "")).strip()
-    ua_lower = ua.lower()
-
-    if "iphone" in ua_lower:
-        device_name = "iPhone"
-    elif "ipad" in ua_lower:
-        device_name = "iPad"
-    elif "android" in ua_lower:
-        device_name = "Android Phone/Tablet"
-    elif "macintosh" in ua_lower or "mac os x" in ua_lower:
-        device_name = "Mac"
-    elif "windows" in ua_lower:
-        device_name = "Windows Laptop/PC"
-    elif "linux" in ua_lower:
-        device_name = "Linux Computer"
-    else:
-        device_name = "Unknown Device"
-
-    if "edg/" in ua_lower:
-        browser = "Edge"
-    elif "chrome/" in ua_lower and "edg/" not in ua_lower:
-        browser = "Chrome"
-    elif "firefox/" in ua_lower:
-        browser = "Firefox"
-    elif "safari/" in ua_lower and "chrome/" not in ua_lower:
-        browser = "Safari"
-    else:
-        browser = "Browser"
-
-    fingerprint_source = f"{ua}|{language}"
-    device_id = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()
-    return device_id, f"{device_name} ({browser})", ua
-
-
-def _register_device():
-    """Register this browser/device in the central Google Sheet."""
-    if not DEVICE_LOG_URL or not DEVICE_LOG_SECRET:
-        return
-    device_id, device_name, user_agent = _browser_info()
-    try:
-        requests.post(
-            DEVICE_LOG_URL,
-            data={
-                "action": "register",
-                "secret": DEVICE_LOG_SECRET,
-                "device_id": device_id,
-                "device_name": device_name,
-                "user_agent": user_agent,
-            },
-            timeout=8,
-        )
-    except Exception:
-        pass
-
-
-def _load_registered_devices():
-    if not DEVICE_LOG_URL or not DEVICE_LOG_SECRET:
-        return []
-    try:
-        response = requests.get(
-            DEVICE_LOG_URL,
-            params={"action": "list", "secret": DEVICE_LOG_SECRET},
-            timeout=8,
-        )
-        data = response.json()
-        return data.get("devices", []) if isinstance(data, dict) else []
-    except Exception:
-        return []
-
-
-_register_device()
 
 # ============================================================
 # BASIC UI
@@ -106,9 +20,12 @@ st.markdown("""
 ::-webkit-scrollbar-thumb:hover { background: #555 !important; }
 </style>
 """, unsafe_allow_html=True)
+
 st.markdown("<h1 style='text-align: center;'>اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ</h1>", unsafe_allow_html=True)
 st.markdown('<meta name="robots" content="noindex, nofollow">', unsafe_allow_html=True)
+
 SHEET_ID = "1GmJcTrkHQwF6m33c4xbJI9pG7XyR7nn39ZOUeGcH86Y"
+
 # ============================================================
 # SESSION STATE
 # ============================================================
@@ -123,8 +40,12 @@ DEFAULTS = {
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value.copy() if isinstance(value, set) else value
+
+
 def toggle_expanders():
     st.session_state.show_all_expanders = not st.session_state.show_all_expanders
+
+
 # ============================================================
 # LOAD DATA
 # ============================================================
@@ -144,13 +65,17 @@ def load_data():
     except Exception as e:
         st.error(f"Error loading sheet: {e}")
         return pd.DataFrame()
+
+
 with st.spinner("Original Sheet se data load ho raha hai..."):
     df = load_data()
+
 col_btn, col_info = st.columns([1, 4])
 with col_btn:
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
         st.rerun()
+
 if df.empty:
     st.error("⚠️ Data load nahi hua! Google Sheet ki 'Share' settings check karein.")
     st.stop()
@@ -158,23 +83,6 @@ else:
     st.markdown(f"🟢 **{len(df)}**")
     st.markdown("---")
 
-# ============================================================
-# 📱 LOGGED-IN DEVICES
-# ============================================================
-# Shows each browser/device only once. Opening the site again does
-# NOT create a new row because the Google Apps Script deduplicates
-# using the device ID.
-registered_devices = _load_registered_devices()
-with st.expander("📱 Logged-in Devices", expanded=False):
-    if not DEVICE_LOG_URL or not DEVICE_LOG_SECRET:
-        st.info("Device list setup nahi ki gayi.")
-    elif not registered_devices:
-        st.info("Abhi koi device registered nahi hai.")
-    else:
-        st.markdown(f"**{len(registered_devices)} device(s) have accessed this website.**")
-        for device in registered_devices:
-            name = html.escape(str(device.get("device_name", "Unknown Device")))
-            st.markdown(f"✅ **{name}**")
 # ============================================================
 # KEYWORD INTELLIGENCE
 #
@@ -198,11 +106,13 @@ KEYWORD_GROUPS = {
     "commercial": ["commercial", "commercials", "comercial", "commercil", "commercail"],
     "portion": ["portion", "portions"],
     "tower": ["tower", "towers", "towr"],
+
     # LOCATION / AREA WORDS
     "precinct": ["precinct", "precincts", "precint", "preinct", "precient", "precent", "pricenct", "preint"],
     "block": ["block", "blocks", "bloc", "blk"],
     "road": ["road", "roads", "rd"],
     "boulevard": ["boulevard", "boulevards", "bullevard", "blvd"],
+
     # TRANSACTION / DEMAND-SUPPLY
     "rent": ["rent", "rental", "rentals", "renting", "rnt"],
     "sale": ["sale", "sales", "sell", "selling", "seller", "sele", "sal", "sare", "saleh"],
@@ -217,8 +127,10 @@ KEYWORD_GROUPS = {
         "chahiye", "chahye", "darkar", "darkaar", "talab"
     ],
     "demand": ["demand", "demands", "damand", "demamd", "dmand", "demmand", "deamand", "dsmand", "demans", "demond", "decmand", "demad"],
+
     # ALLOTMENT / PAPERWORK
     "allotment": ["allotment", "allotments", "alotment", "alltment", "allotement", "allottment", "allotmnet", "alltmnt"],
+
     # FEATURES
     "corner": ["corner", "corners", "conner", "cornr", "carner", "coner"],
     "jinnah": ["jinnah", "jinah", "jinnal", "jinh", "jinnha"],
@@ -226,6 +138,7 @@ KEYWORD_GROUPS = {
     "park": ["park", "parks"],
     "west": ["west", "western"],
     "main": ["main"],
+
     # CONSTRUCTION / CONDITION
     "grey": ["grey", "gray"],
     "structure": ["structure", "structures", "stucture"],
@@ -233,6 +146,7 @@ KEYWORD_GROUPS = {
     "unfurnished": ["unfurnished"],
     "brand": ["brand"],
     "new": ["new"],
+
     # SIZE / UNIT WORDS
     "yard": ["yard", "yards", "gaz", "gazz", "sqyd", "sqyds", "sqyard", "sqyards"],
     "marla": ["marla", "marlas"],
@@ -241,20 +155,26 @@ KEYWORD_GROUPS = {
     "storey": ["storey", "storeys", "story", "stories"],
     "basement": ["basement", "basements"],
 }
+
 # Reverse map: any known spelling/synonym points back to its canonical group.
 ALIAS_TO_GROUP = {}
 for canonical, aliases in KEYWORD_GROUPS.items():
     for alias in aliases:
         ALIAS_TO_GROUP[alias.lower()] = canonical
+
+
 def regex_for_aliases(aliases):
     """Create one safe whole-word regex for a group of aliases."""
     escaped = sorted({re.escape(a.lower()) for a in aliases}, key=len, reverse=True)
     return r"\b(?:" + "|".join(escaped) + r")\b"
+
+
 def get_search_patterns(query):
     """Each query word remains AND; each keyword group becomes OR."""
     raw_terms = query.lower().split()
     patterns = []
     used_groups = set()
+
     for term in raw_terms:
         # P-series: P11B, P-11B, P_11B, Precinct 11B.
         p_match = re.fullmatch(r"p[-_]?([0-9]+[a-z]?)", term)
@@ -264,6 +184,7 @@ def get_search_patterns(query):
                 rf"\b(?:p[-_]?{re.escape(number)}|precinct[-_\s]*{re.escape(number)})\b"
             )
             continue
+
         canonical = ALIAS_TO_GROUP.get(term)
         if canonical and canonical not in used_groups:
             patterns.append(regex_for_aliases(KEYWORD_GROUPS[canonical]))
@@ -274,7 +195,10 @@ def get_search_patterns(query):
         else:
             # Unknown word: keep it exact rather than doing dangerous fuzzy matching.
             patterns.append(r"\b" + re.escape(term) + r"\b")
+
     return patterns
+
+
 # ============================================================
 # WHATSAPP NUMBER
 # ============================================================
@@ -285,9 +209,13 @@ def get_clean_whatsapp(text):
         num = '92' + match.group(1)
         return f"https://wa.me/{num}"
     return None
+
+
 def generate_id(date_time, sender, text):
     unique_string = f"{date_time}_{sender}_{text}"
     return hashlib.md5(unique_string.encode()).hexdigest()
+
+
 # ============================================================
 # DATE FILTER
 # ============================================================
@@ -297,9 +225,11 @@ quick_days = st.radio(
     ["1D", "2D", "3D", "4D", "5D", "6D", "7D", "2W", "3W", "1M", "All Time", "Custom Range"],
     horizontal=True,
 )
+
 # Pakistan local date is used for the filter.
 pakistan_tz = ZoneInfo("Asia/Karachi")
 today = datetime.datetime.now(pakistan_tz).date()
+
 if quick_days == "1D":
     # Today only
     start_date, end_date = today, today
@@ -333,12 +263,14 @@ else:
         start_date = st.date_input("Start Date", min_d)
     with col_d2:
         end_date = st.date_input("End Date", today)
+
 # Compare calendar dates only. Sheet dates are explicitly parsed as DD/MM/YYYY.
 parsed_dates_only = df['Parsed_Date'].dt.date
 mask = (parsed_dates_only >= start_date) & (parsed_dates_only <= end_date)
 df = df.loc[mask].copy()
 st.markdown(f"**🎯 Filtered Records ({quick_days}): {len(df)}**")
 st.markdown("---")
+
 # ============================================================
 # COPY ALL RESULTS
 # Copies the complete text of every result currently shown.
@@ -349,6 +281,8 @@ def clean_html_text(value):
     value = re.sub(r'<br\s*/?>', '\n', value, flags=re.I)
     value = re.sub(r'<[^>]+>', '', value)
     return html.unescape(value).strip()
+
+
 def make_copy_text(items):
     blocks = []
     for number, item in enumerate(items, 1):
@@ -364,14 +298,18 @@ def make_copy_text(items):
             block += f"\nOriginal Message: {original}"
         blocks.append(block)
     return "\n\n" + "\n\n------------------------------\n\n".join(blocks)
+
+
 def copy_all_results(items, prefix):
     if not items:
         return
+
     # The UI is a real Copy All button. It does not depend on
     # whether the individual expanders are open or closed.
     copy_text = make_copy_text(items)
     safe_text = html.escape(copy_text)
     height = min(500, max(160, 110 + len(items) * 45))
+
     components.html(
         f"""
         <div style="font-family:Arial,sans-serif;">
@@ -410,10 +348,13 @@ def copy_all_results(items, prefix):
         height=height + 80,
         scrolling=True,
     )
+
+
 # ============================================================
 # UI RENDERER
 # ============================================================
 def render_deal_ui(item, record_num=None):
+
     if item['source_tab'] == 'tab1':
         title_text = f"Record #{record_num}" if record_num is not None else "Saved Record"
         st.markdown(
@@ -430,6 +371,7 @@ def render_deal_ui(item, record_num=None):
             st.markdown(f"[📲 Is Number par WhatsApp Chat Kholein]({item['wa_link']})", unsafe_allow_html=True)
         with st.expander("👀 Poora Original Message Dekhein (Show Full List)", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
+
     elif item['source_tab'] == 'tab2_avail':
         st.markdown(
             f"""
@@ -444,6 +386,7 @@ def render_deal_ui(item, record_num=None):
             st.markdown(f"[📲 WhatsApp Karein]({item['wa_link']})", unsafe_allow_html=True)
         with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
+
     elif item['source_tab'] == 'tab2_req':
         st.markdown(
             f"""
@@ -458,28 +401,35 @@ def render_deal_ui(item, record_num=None):
             st.markdown(f"[📲 WhatsApp Karein]({item['wa_link']})", unsafe_allow_html=True)
         with st.expander("👀 Poora Original Message Dekhein", expanded=st.session_state.show_all_expanders):
             st.markdown(item['original_details'], unsafe_allow_html=True)
+
     st.markdown("<hr>", unsafe_allow_html=True)
+
+
 # ============================================================
 # TABS
 # ============================================================
 tab1, tab2, tab3 = st.tabs(["🔍 Smart Search", "🤝 Deal Matcher", "📊 Analytics Dashboard"])
+
 # ============================================================
 # TAB 1: SMART SEARCH
 # ============================================================
 with tab1:
     st.markdown("### 🔍 General Search")
     user_query = st.text_input("Search:", placeholder="Ali block apartment ya p3", key="search_input_tab1")
+
     if st.button("🔍 Search Karein", key="btn_tab1"):
         st.session_state.search_active1 = True
         st.session_state.last_query1 = user_query
     elif user_query != st.session_state.last_query1:
         st.session_state.search_active1 = False
         st.session_state.last_query1 = user_query
+
     if st.session_state.search_active1 and user_query.strip() and not df.empty:
         with st.spinner("Talaash ki ja rahi hai..."):
             search_patterns = get_search_patterns(user_query)
             matched_results = []
             seen_signatures = set()
+
             for _, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
@@ -487,10 +437,12 @@ with tab1:
                 paragraphs = re.split(r'\n\s*\n', details)
                 if not paragraphs:
                     continue
+
                 header_chunk = paragraphs[0]
                 header_lower = header_chunk.lower()
                 matched_chunks = []
                 formatted_full_message_paragraphs = []
+
                 for i, para in enumerate(paragraphs):
                     para_lower = para.lower()
                     chunk_match = True
@@ -498,6 +450,7 @@ with tab1:
                         if not (re.search(pattern, para_lower) or re.search(pattern, header_lower)):
                             chunk_match = False
                             break
+
                     if chunk_match and search_patterns:
                         lines = para.split('\n')
                         hl_lines = []
@@ -516,11 +469,13 @@ with tab1:
                         formatted_full_message_paragraphs.append(formatted_para)
                     else:
                         formatted_full_message_paragraphs.append(para.replace('\n', '<br>'))
+
                 if matched_chunks:
                     matched_html = "<br><br>".join(matched_chunks)
                     if not any("[Top Heading" in chunk for chunk in matched_chunks):
                         header_html = f"<div style='color: gray; font-size: 0.9em;'><i>Context (Shuru Ki Line):<br>{header_chunk.replace(chr(10), '<br>')}</i></div><br>"
                         matched_html = header_html + matched_html
+
                     highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
                     wa_link = get_clean_whatsapp(f"{sender} {details}")
                     clean_text_sig = re.sub(r'<[^>]*?>', '', matched_html).strip().lower()
@@ -528,6 +483,7 @@ with tab1:
                     if signature in seen_signatures:
                         continue
                     seen_signatures.add(signature)
+
                     item_id = generate_id(date_time, sender, matched_html)
                     matched_results.append({
                         'id': item_id,
@@ -538,6 +494,7 @@ with tab1:
                         'original_details': highlighted_original_details,
                         'source_tab': 'tab1',
                     })
+
         if not matched_results:
             st.warning("❌ Aapke keywords wala koi record nahi mila.")
         else:
@@ -547,25 +504,30 @@ with tab1:
             st.button(btn_text, on_click=toggle_expanders, key="btn_exp_t1")
             for match_idx, item in enumerate(matched_results[:150], 1):
                 render_deal_ui(item, match_idx)
+
 # ============================================================
 # TAB 2: DEAL MATCHER
 # ============================================================
 with tab2:
     st.markdown("### 🤝 Aamne-Samne Matcher (Demand vs Supply)")
     match_query = st.text_input("Property to Match:", placeholder="e.g., Ali block villa", key="search_input_tab2")
+
     if st.button("🤝 Match Deals", key="btn_tab2"):
         st.session_state.search_active2 = True
         st.session_state.last_query2 = match_query
     elif match_query != st.session_state.last_query2:
         st.session_state.search_active2 = False
         st.session_state.last_query2 = match_query
+
     if st.session_state.search_active2 and match_query.strip() and not df.empty:
         with st.spinner("Deals match ki ja rahi hain..."):
             search_patterns = get_search_patterns(match_query)
             required_deals = []
             available_deals = []
             seen_signatures_tab2 = set()
+
             required_keywords = r'\b(need|needs|require|required|requires|chahiye|chahye|looking|buyer|buyers|client|wanted|want|darkar|darkaar|talab)\b'
+
             for _, row in df.iterrows():
                 date_time = row.get('Date & Time', 'N/A')
                 sender = row.get('Sender / Contact', row.get('Source/Sender', 'N/A'))
@@ -573,10 +535,12 @@ with tab2:
                 paragraphs = re.split(r'\n\s*\n', details)
                 if not paragraphs:
                     continue
+
                 header_chunk = paragraphs[0]
                 header_lower = header_chunk.lower()
                 matched_chunks_data = []
                 formatted_full_message_paragraphs = []
+
                 for i, para in enumerate(paragraphs):
                     para_lower = para.lower()
                     chunk_match = True
@@ -584,6 +548,7 @@ with tab2:
                         if not (re.search(pattern, para_lower) or re.search(pattern, header_lower)):
                             chunk_match = False
                             break
+
                     if chunk_match and search_patterns:
                         lines = para.split('\n')
                         hl_lines = []
@@ -600,15 +565,18 @@ with tab2:
                         matched_chunks_data.append({'deal_text': formatted_para, 'is_required': is_required})
                     else:
                         formatted_full_message_paragraphs.append(para.replace('\n', '<br>'))
+
                 if matched_chunks_data:
                     highlighted_original_details = "<br><br>".join(formatted_full_message_paragraphs)
                     wa_link = get_clean_whatsapp(f"{sender} {details}")
+
                     for m_data in matched_chunks_data:
                         clean_text_sig = re.sub(r'<[^>]*?>', '', m_data['deal_text']).strip().lower()
                         signature = f"{sender}_{clean_text_sig}"
                         if signature in seen_signatures_tab2:
                             continue
                         seen_signatures_tab2.add(signature)
+
                         item_id = generate_id(date_time, sender, m_data['deal_text'])
                         deal_dict = {
                             'id': item_id,
@@ -623,11 +591,13 @@ with tab2:
                             required_deals.append(deal_dict)
                         else:
                             available_deals.append(deal_dict)
+
         all_matcher_items = available_deals + required_deals
         if available_deals or required_deals:
             copy_all_results(all_matcher_items[:50], "tab2")
             btn_text2 = "🔼 Sab Messages Band Karein (Collapse All)" if st.session_state.show_all_expanders else "🔽 Sab Messages Kholein (Expand All)"
             st.button(btn_text2, on_click=toggle_expanders, key="btn_exp_t2")
+
         col_avail, col_req = st.columns(2)
         with col_avail:
             st.markdown("### 🟢 Available (Supply)")
@@ -636,6 +606,7 @@ with tab2:
             else:
                 for item in available_deals[:25]:
                     render_deal_ui(item)
+
         with col_req:
             st.markdown("### 🔴 Required (Demand)")
             if not required_deals:
@@ -643,6 +614,7 @@ with tab2:
             else:
                 for item in required_deals[:25]:
                     render_deal_ui(item)
+
 # ============================================================
 # TAB 3: ANALYTICS
 # ============================================================
@@ -652,6 +624,7 @@ with tab3:
         st.markdown("#### 📈 Daily Market Activity")
         daily_counts = df.groupby(df['Parsed_Date'].dt.date).size()
         st.line_chart(daily_counts)
+
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             st.markdown("#### 🏙️ Top 15 Active Precincts")
@@ -662,6 +635,7 @@ with tab3:
                 p_counts.columns = ['Precinct', 'Mentions']
                 p_counts['Precinct'] = 'P-' + p_counts['Precinct'].astype(str)
                 st.bar_chart(p_counts.head(15).set_index('Precinct'))
+
             st.markdown("#### 🏠 Property Type Analysis")
             def get_prop_type(text):
                 t = str(text).lower()
@@ -675,16 +649,21 @@ with tab3:
                 if re.search(regex_for_aliases(KEYWORD_GROUPS['commercial']), t) or re.search(regex_for_aliases(KEYWORD_GROUPS['shop']), t) or re.search(regex_for_aliases(KEYWORD_GROUPS['office']), t):
                     types.append('Commercial')
                 return types if types else ['Other']
+
             all_types = df['Message Details'].apply(get_prop_type).explode()
             st.bar_chart(all_types.value_counts())
+
             st.markdown("#### ⚖️ Demand vs Supply")
             req_keywords = r'\b(need|needs|require|required|requires|chahiye|chahye|looking|buyer|buyers|client|wanted|want|darkar|darkaar|talab)\b'
+
             def get_demand_supply(text):
                 if re.search(req_keywords, str(text).lower()):
                     return 'Required (Demand)'
                 return 'Available (Supply)'
+
             ds_counts = df['Message Details'].apply(get_demand_supply).value_counts()
             st.bar_chart(ds_counts)
+
         with col_c2:
             st.markdown("#### 📐 Top Property Sizes")
             size_pattern = r'(?i)(\d{2,4})\s*(?:gaz|sq\s*yard|sqyd|sq\s*yds|yards|yard|sqft|sq\s*ft)'
@@ -696,6 +675,7 @@ with tab3:
                 st.bar_chart(s_counts.head(10).set_index('Size'))
             else:
                 st.info("Size data available nahi hai.")
+
             st.markdown("#### ⭐ Top Prime Features")
             def get_features(text):
                 t = str(text).lower()
@@ -711,11 +691,13 @@ with tab3:
                 if re.search(r'\bmain\s*(boulevard|road)\b', t):
                     feats.append('Main Road')
                 return feats
+
             all_feats = df['Message Details'].apply(get_features).explode().dropna()
             if not all_feats.empty:
                 st.bar_chart(all_feats.value_counts())
             else:
                 st.info("No prime features found.")
+
             st.markdown("#### 🏗️ Construction Status")
             def get_status(text):
                 t = str(text).lower()
@@ -729,6 +711,7 @@ with tab3:
                 if re.search(regex_for_aliases(KEYWORD_GROUPS['unfurnished']), t):
                     status.append('Unfurnished')
                 return status
+
             all_status = df['Message Details'].apply(get_status).explode().dropna()
             if not all_status.empty:
                 st.bar_chart(all_status.value_counts())
@@ -736,3 +719,220 @@ with tab3:
                 st.info("No status keywords found.")
     else:
         st.warning("Data available nahi hai.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Script google sheet 
+// ----------------------------------------------------------------------
+// 1. AUTO DELETE ROWS (Aapka Pehla Code - Updated)
+// ----------------------------------------------------------------------
+function autoDeleteRows(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000); 
+  } catch (err) {
+    return;
+  }
+  
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1") || SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+    if (!sheet) return;
+    
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return; 
+    
+    // Step 1: Naye message ko sirf pichle 4000 messages ke sath check karna
+    var startRow = Math.max(2, lastRow - 4000); 
+    var numRows = lastRow - startRow + 1;
+    
+    var data = sheet.getRange(startRow, 1, numRows, sheet.getLastColumn()).getValues();
+    
+    var newestRowIndex = data.length - 1;
+    var newestRow = data[newestRowIndex];
+    
+    var newestSender = newestRow[1] ? newestRow[1].toString().trim() : "";
+    var newestMessage = newestRow[4] ? newestRow[4].toString().trim() : "";
+    
+    var cleanNewestMsg = newestMessage.toLowerCase().replace(/[\s\n\r]+/g, ' ').trim();
+    var wordCount = cleanNewestMsg.split(/\s+/).filter(function(word) { return word.length > 0; }).length;
+    
+    if (cleanNewestMsg === "") return;
+    
+    // Yahan se Asif Naqvi aur Hammad wala block hata diya gaya hai
+    var isBlockedSender = newestSender.includes("Back To Allah") || 
+                          newestSender.includes("Sad Poetry") || 
+                          newestSender.includes("Ami Jaan") ||
+                          newestSender.includes("+92 303 3882286") || 
+                          newestSender.includes("+923051121609");
+                          
+    var isMedia = newestMessage.includes("[Media/Document]") || 
+                  newestMessage.includes("[Media Message]") || 
+                  newestMessage.includes("image") || 
+                  newestMessage.includes("video");
+                  
+    var isOnlyLink = /^https?:\/\/[^\s]+$/i.test(newestMessage.trim()) || 
+                     /^www\.[^\s]+$/i.test(newestMessage.trim());
+                     
+    var isShortMessage = wordCount <= 5;
+    
+    // Agar fuzool message ya spam hai, toh naya message delete kar do aur code rok do
+    if (isBlockedSender || isMedia || isOnlyLink || isShortMessage) {
+      sheet.deleteRow(lastRow); 
+      return; 
+    }
+    
+    // Pichle 4000 messages mein duplicate check karna
+    for (var i = 0; i < newestRowIndex; i++) {
+      var oldMessage = data[i][4] ? data[i][4].toString().trim() : "";
+      var cleanOldMsg = oldMessage.toLowerCase().replace(/[\s\n\r]+/g, ' ').trim();
+      if (cleanNewestMsg === cleanOldMsg) {
+        sheet.deleteRow(lastRow); 
+        return; // Duplicate mil gaya, delete kiya aur code rok diya
+      }
+    }
+    
+    // Step 2: Hamesha Total 40,000 Messages (Rows) Maintain Rakhna
+    var maxRowsAllowed = 40001; 
+    lastRow = sheet.getLastRow(); 
+    
+    if (lastRow > maxRowsAllowed) {
+      var rowsToDelete = lastRow - maxRowsAllowed;
+      sheet.deleteRows(2, rowsToDelete); 
+    }
+    
+  } finally {
+    lock.releaseLock(); 
+  }
+}
+
+// ----------------------------------------------------------------------
+// 2. ONE-TIME CLEANUP FUNCTION (Aapka Dusra Code - Updated)
+// ----------------------------------------------------------------------
+function removeExactDuplicatesOneTime() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1") || SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  if (!sheet) return;
+
+  var data = sheet.getDataRange().getValues(); 
+  var seenMessages = {};
+  var rowsToDelete = [];
+
+  for (var i = 1; i < data.length; i++) { 
+    var sender = data[i][1];  // Column B
+    var message = data[i][4]; // Column E
+    
+    var markForDeletion = false;
+
+    // Check 1 (Blocked senders wala hissa) yahan se remove kar diya gaya hai 
+    // taake Asif aur Hammad k purane msgs delete na hon.
+
+    // Check 2: Kya message duplicate hai?
+    if (!markForDeletion && message) {
+      var cleanMsg = message.toString().toLowerCase().replace(/[\s\n\r]+/g, ' ').trim();
+      
+      if (seenMessages[cleanMsg]) {
+        markForDeletion = true; 
+      } else {
+        seenMessages[cleanMsg] = true; 
+      }
+    }
+
+    if (markForDeletion) {
+      rowsToDelete.push(i + 1); 
+    }
+  }
+
+  // Neechay se upar (Bottom to Top) delete karna
+  for (var j = rowsToDelete.length - 1; j >= 0; j--) {
+    sheet.deleteRow(rowsToDelete[j]);
+  }
+}
+
+// ----------------------------------------------------------------------
+// 3. NEW FUNCTION: CREATE 10 SHEETS & DISTRIBUTE 1000 ROWS IN EACH (Untouched)
+// ----------------------------------------------------------------------
+function distributeDataTo10Sheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0];
+  
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Main sheet nahi mili!");
+    return;
+  }
+
+  // Pura data array mein lein (pehli row se)
+  var data = sheet.getDataRange().getValues();
+  var totalRows = data.length;
+  
+  if (totalRows <= 1) {
+     SpreadsheetApp.getUi().alert("Sheet mein copy karne ke liye koi data nahi hai!");
+     return;
+  }
+  
+  // 'Data' folder dhoondein, na mile to naya banayein
+  var folders = DriveApp.getFoldersByName("Data");
+  var targetFolder;
+  
+  if (folders.hasNext()) {
+    targetFolder = folders.next();
+  } else {
+    targetFolder = DriveApp.createFolder("Data");
+  }
+  
+  var chunkSize = 1000;
+  var sheetNumber = 1;
+  
+  // Headers har sheet mein dalne ke liye
+  var headers = data[0];
+  
+  // Data loop karna shuru karein (Row 1 yani index 1 se kyuke index 0 header hai)
+  for (var i = 1; i < totalRows; i += chunkSize) {
+    if (sheetNumber > 10) break; // Sirf 10 sheets banani hain
+    
+    // Har sheet ke liye 1000 rows ka tukra
+    var chunk = data.slice(i, i + chunkSize);
+    if (chunk.length === 0) break;
+    
+    // Chunk mein upar header shamil kar dein
+    chunk.unshift(headers);
+    
+    // Nayi Google Sheet banayen
+    var newSs = SpreadsheetApp.create("Sheet" + sheetNumber);
+    var newSheet = newSs.getActiveSheet();
+    
+    // Nayi sheet mein data array set karein
+    newSheet.getRange(1, 1, chunk.length, chunk[0].length).setValues(chunk);
+    
+    // Banayi gayi sheet ko Drive mein 'Data' folder mein move karein
+    var fileId = newSs.getId();
+    var file = DriveApp.getFileById(fileId);
+    file.moveTo(targetFolder);
+    
+    sheetNumber++;
+  }
+  
+  SpreadsheetApp.getUi().alert("Mubarak ho! 'Data' folder mein " + (sheetNumber - 1) + " files kamyabi se ban gayi hain.");
+}
+
